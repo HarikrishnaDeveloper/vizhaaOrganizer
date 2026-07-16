@@ -39,7 +39,10 @@ const request = async (path, options = {}) => {
   const data = await res.json();
   console.log(`[API RESPONSE] <= ${res.status} ${url}`, data);
 
-  if (!res.ok) throw new Error(data.message || 'Request failed');
+  if (!res.ok) {
+    const errorMsg = data.error ? `${data.message}: ${data.error}` : data.message || 'Request failed';
+    throw new Error(errorMsg);
+  }
   return data;
 };
 
