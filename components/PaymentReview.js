@@ -19,7 +19,7 @@ import { useAuth } from '../context/AuthContext';
 
 const { width } = Dimensions.get('window');
 
-const RAZORPAY_KEY_ID = 'rzp_test_SoBnImPo5EpkWt'; 
+import { RAZORPAY_KEY_ID } from '../config';
 
 const PaymentReview = ({ eventData, onBack, onPay }) => {
   const { user } = useAuth();
