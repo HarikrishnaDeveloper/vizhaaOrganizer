@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import LanguageSelect from './LanguageSelect';
 import PhoneEntry from './PhoneEntry';
 import OTPScreen from './OTPScreen';
 import Verifying from './Verifying';
@@ -9,7 +8,7 @@ import { useAuth } from '../context/AuthContext';
 import { api, tokenStore } from '../services/api';
 
 const AuthFlow = () => {
-  const [screen, setScreen] = useState('language');
+  const [screen, setScreen] = useState('phone');
   const [phone, setPhone] = useState('');
   const [pendingLogin, setPendingLogin] = useState(null);
   const [profileData, setProfileData] = useState(null);
@@ -56,10 +55,6 @@ const AuthFlow = () => {
       }
     }
   };
-
-  if (screen === 'language') {
-    return <LanguageSelect onSelect={() => setScreen('phone')} />;
-  }
 
   if (screen === 'phone') {
     return (

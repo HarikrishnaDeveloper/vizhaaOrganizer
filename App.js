@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
@@ -8,7 +8,7 @@ import {
   Outfit_600SemiBold,
   Outfit_700Bold,
 } from '@expo-google-fonts/outfit';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
 import Onboarding from './components/Onboarding';
 import AuthFlow from './components/AuthFlow';
 import Dashboard from './components/Dashboard';
@@ -26,6 +26,14 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 
 SplashScreen.preventAutoHideAsync();
 
+// Longest the splash may wait for the onboarding illustration before the
+// onboarding screen's own loading state takes over
+const ONBOARDING_SPLASH_TIMEOUT_MS = 4000;
+
+const hideSplash = () => {
+  SplashScreen.hideAsync().catch(() => {});
+};
+
 // Inner component so it can read AuthContext
 const AppContent = () => {
   const { user, loading } = useAuth();
@@ -34,6 +42,20 @@ const AppContent = () => {
   const [currentScreen, setCurrentScreen] = useState('dashboard');
   const [tempEventData, setTempEventData] = useState(null);
   const [tempAmountPaid, setTempAmountPaid] = useState(0);
+
+  // The splash stays up while the stored token is checked. Onboarding hides it
+  // itself once its illustration is decoded (see onReady below); every other
+  // screen hides it as soon as auth resolves.
+  const waitingForOnboarding = !user && showOnboarding;
+  useEffect(() => {
+    if (loading) return;
+    if (!waitingForOnboarding) {
+      hideSplash();
+      return;
+    }
+    const timeout = setTimeout(hideSplash, ONBOARDING_SPLASH_TIMEOUT_MS);
+    return () => clearTimeout(timeout);
+  }, [loading, waitingForOnboarding]);
 
   // While checking stored token, show blank screen (SplashScreen is still visible)
   if (loading) return <View style={{ flex: 1, backgroundColor: '#FFF' }} />;
@@ -136,7 +158,7 @@ const AppContent = () => {
 
   // First launch — show onboarding, then auth flow
   if (showOnboarding) {
-    return <Onboarding onComplete={() => setShowOnboarding(false)} />;
+    return <Onboarding onComplete={() => setShowOnboarding(false)} onReady={hideSplash} />;
   }
 
   return <AuthFlow />;
@@ -149,18 +171,12 @@ export default function App() {
     Outfit_700Bold,
   });
 
-  const onLayoutRootView = useCallback(async () => {
-    if (fontsLoaded) {
-      await SplashScreen.hideAsync();
-    }
-  }, [fontsLoaded]);
-
   if (!fontsLoaded) return null;
 
   return (
-    <SafeAreaProvider>
+    <SafeAreaProvider initialMetrics={initialWindowMetrics}>
       <AuthProvider>
-        <View style={styles.container} onLayout={onLayoutRootView}>
+        <View style={styles.container}>
           <StatusBar style="dark" />
           <AppContent />
         </View>

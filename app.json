@@ -4,14 +4,8 @@
     "slug": "Vizhaa_organizer",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/splashscreen/vizhaa_logo.png",
+    "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "newArchEnabled": true,
-    "splash": {
-      "image": "./assets/splashscreen/vizhaa_logo.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
-    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.vizhaa.organizer"
@@ -19,19 +13,26 @@
     "android": {
       "package": "com.vizhaa.organizer",
       "adaptiveIcon": {
-        "foregroundImage": "./assets/splashscreen/vizhaa_logo.png",
-        "backgroundColor": "#ffffff"
-      },
-      "edgeToEdgeEnabled": true
+        "foregroundImage": "./assets/adaptive-icon-foreground.png",
+        "backgroundColor": "#FFFFFF"
+      }
     },
     "web": {
-      "favicon": "./assets/splashscreen/vizhaa_logo.png"
+      "favicon": "./assets/favicon.png"
     },
     "plugins": [
       "expo-font",
       "@react-native-community/datetimepicker",
       "expo-image",
-      "expo-splash-screen",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 200,
+          "resizeMode": "contain",
+          "backgroundColor": "#FFFFFF"
+        }
+      ],
       "expo-status-bar"
     ]
   }

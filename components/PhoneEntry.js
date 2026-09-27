@@ -75,7 +75,7 @@ const styles = StyleSheet.create({
 
   card: {
     backgroundColor: '#EBEBEB',
-    borderRadius: 28,
+    borderRadius: 4,
     padding: 28,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 10 },
@@ -101,7 +101,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFF',
-    borderRadius: 10,
+    borderRadius: 4,
     borderWidth: 1,
     borderColor: '#E0E0E0',
     height: 52,
@@ -157,17 +157,25 @@ const styles = StyleSheet.create({
     color: '#333',
   },
 
+  // Matches the onboarding "Plan Your Dream Day" CTA
   btn: {
-    backgroundColor: '#111',
-    borderRadius: 12,
-    height: 52,
+    backgroundColor: '#1C1C1E',
+    borderRadius: 4,
+    height: 56,
     justifyContent: 'center',
     alignItems: 'center',
+    paddingHorizontal: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.14,
+    shadowRadius: 16,
+    elevation: 4,
   },
   btnText: {
-    color: '#FFF',
-    fontSize: 15,
+    color: '#FFFFFF',
+    fontSize: 16,
     fontFamily: 'Outfit_600SemiBold',
+    letterSpacing: 0.2,
   },
 });
 

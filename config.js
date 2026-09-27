@@ -2,5 +2,5 @@
 // iOS simulator     → http://localhost:5000
 // Physical device   → http://<YOUR_LOCAL_IP>:5000  (run `ipconfig` to find it)
 // Production        → https://vizhaa-backend.vercel.app
-export const BACKEND_URL = 'https://vizhaa-backend.vercel.app';
+export const BACKEND_URL = 'http://192.168.0.4:5000';
 export const RAZORPAY_KEY_ID = 'rzp_test_So98FTYEMI9HNT';

@@ -1,7 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Dimensions, Animated } from 'react-native';
-
-const { width } = Dimensions.get('window');
+import { View, Text, StyleSheet, Animated } from 'react-native';
 
 const OnboardingSlide = ({ title }) => {
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -39,7 +37,9 @@ const OnboardingSlide = ({ title }) => {
           },
         ]}
       >
-        <Text style={styles.title}>{title}</Text>
+        <Text style={styles.title} numberOfLines={3} adjustsFontSizeToFit minimumFontScale={0.8}>
+          {title}
+        </Text>
       </Animated.View>
     </View>
   );
@@ -47,23 +47,21 @@ const OnboardingSlide = ({ title }) => {
 
 const styles = StyleSheet.create({
   container: {
-    width,
     flex: 1,
-    justifyContent: 'flex-end',
-    paddingBottom: 195,
+    justifyContent: 'center',
   },
   textContainer: {
     width: '100%',
     alignItems: 'center',
-    paddingHorizontal: 36,
+    paddingHorizontal: 32,
   },
   title: {
-    fontSize: 26,
+    fontSize: 20,
     textAlign: 'center',
-    fontFamily: 'Outfit_700Bold',
-    color: '#1A0A02',
-    lineHeight: 36,
-    letterSpacing: -0.3,
+    fontFamily: 'Outfit_600SemiBold',
+    color: '#1C1C1E',
+    lineHeight: 28,
+    letterSpacing: 0.3,
   },
 });
 

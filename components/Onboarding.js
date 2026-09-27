@@ -2,49 +2,51 @@ import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   StyleSheet,
-  Dimensions,
   Text,
   TouchableOpacity,
   Animated,
+  ActivityIndicator,
+  useWindowDimensions,
 } from 'react-native';
 import PagerView from 'react-native-pager-view';
-import { LinearGradient } from 'expo-linear-gradient';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
 import { Image } from 'expo-image';
-import Svg, { Circle, Defs, RadialGradient, Stop, Rect } from 'react-native-svg';
+import Svg, { Circle, Defs, RadialGradient, Stop } from 'react-native-svg';
 import OnboardingSlide from './OnboardingSlide';
+import { preloadOnboardingImages } from './onboardingAssets';
 
-const { width, height } = Dimensions.get('window');
+const COLORS = {
+  background: '#FFFFFF',
+  charcoal: '#1C1C1E',
+  textMuted: '#8A8A8E',
+  textStrong: '#3A3A3C',
+  underline: '#C7C7CC',
+};
 
-const logoAsset = require('../assets/splashscreen/vizhaa_logo.png');
-const manAsset = require('../assets/splashscreen/man.svg');
-const popperAsset = require('../assets/splashscreen/sml_popper.svg');
-const bgCircleAsset = require('../assets/splashscreen/bg_Circle.svg');
-const decorAsset = require('../assets/splashscreen/decor.png');
+// Height reserved for the slide title, shared by the layout and every pager page.
+// Fits three lines of the 20/28 title style.
+const TITLE_HEIGHT = 88;
+// Upper bound for the illustration so it doesn't balloon on tablets
+const MAX_STAGE_SIZE = 440;
+// Usable heights (window minus system bars) below this get tighter spacing
+const COMPACT_HEIGHT = 640;
+// Gap kept between the CTA and the system navigation bar / screen edge
+const BOTTOM_GAP = 12;
+
+// All positions are relative to the square illustration stage, so the whole
+// composition scales together on any screen size.
 const UNIFIED_FOOD_POSITIONS = [
-  { top: '28%', left: '6%', width: 105, height: 105 },   // Top-Left
-  { top: '25%', right: '6%', width: 105, height: 105 },  // Top-Right
-  { bottom: '1%', right: '35%', width: 105, height: 105 } // Bottom-Right
+  { top: '14%', left: '0%' },     // Top-Left
+  { top: '10%', right: '0%' },    // Top-Right
+  { bottom: '-6%', left: '28%' }, // Bottom-Center
 ];
 
+// Indices into the preloaded food images, one set of three per slide
 const FOOD_DATA = [
-  // Slide 0
-  [
-    { source: require('../assets/splashscreen/food/fp1.png'), style: UNIFIED_FOOD_POSITIONS[0] },
-    { source: require('../assets/splashscreen/food/fp2.png'), style: UNIFIED_FOOD_POSITIONS[1] },
-    { source: require('../assets/splashscreen/food/fp3.png'), style: UNIFIED_FOOD_POSITIONS[2] },
-  ],
-  // Slide 1
-  [
-    { source: require('../assets/splashscreen/food/fp4.png'), style: UNIFIED_FOOD_POSITIONS[0] },
-    { source: require('../assets/splashscreen/food/fp5.png'), style: UNIFIED_FOOD_POSITIONS[1] },
-    { source: require('../assets/splashscreen/food/fp6.png'), style: UNIFIED_FOOD_POSITIONS[2] },
-  ],
-  // Slide 2
-  [
-    { source: require('../assets/splashscreen/food/fp7.png'), style: UNIFIED_FOOD_POSITIONS[0] },
-    { source: require('../assets/splashscreen/food/fp8.png'), style: UNIFIED_FOOD_POSITIONS[1] },
-    { source: require('../assets/splashscreen/food/fp9.png'), style: UNIFIED_FOOD_POSITIONS[2] },
-  ]
+  [0, 1, 2], // Slide 0
+  [3, 4, 5], // Slide 1
+  [6, 7, 8], // Slide 2
 ];
 
 const slides = [
@@ -62,9 +64,13 @@ const slides = [
   },
 ];
 
+// Raises the waiter within the stage (fraction of stage size; 25pt at the
+// typical 360pt stage) so the shift scales with the illustration
+const CHARACTER_LIFT = 0.07;
+
 const POPPER_POSITIONS = [
-  { top: '30%', right: '2%' },
-  { bottom: '25%', left: '1%' },
+  { top: '6%', right: '-2%' },
+  { bottom: '10%', left: '-3%' },
 ];
 
 const AnimatedFoodItem = ({ source, style, delay = 0, counterRotate }) => {
@@ -95,16 +101,55 @@ const AnimatedFoodItem = ({ source, style, delay = 0, counterRotate }) => {
 
   return (
     <Animated.View style={[style, { transform: [{ translateY }, { rotate: counterRotate }] }]}>
-      <Image source={source} style={{ width: '100%', height: '100%' }} contentFit="contain" transition={400} />
+      <Image source={source} style={{ width: '100%', height: '100%' }} contentFit="contain" />
     </Animated.View>
   );
 };
 
-const Onboarding = ({ onComplete }) => {
+// Soft spotlight behind the character. Fills its parent, so it always
+// shares the illustration's size and position.
+const CircularHalo = () => (
+  <View style={StyleSheet.absoluteFill} pointerEvents="none">
+    <Svg width="100%" height="100%" viewBox="0 0 100 100">
+      <Defs>
+        <RadialGradient id="haloGlow" cx="50%" cy="50%" r="50%">
+          <Stop offset="0%" stopColor="#F4F2EF" stopOpacity="1" />
+          <Stop offset="70%" stopColor="#F7F6F4" stopOpacity="0.6" />
+          <Stop offset="100%" stopColor="#FFFFFF" stopOpacity="0" />
+        </RadialGradient>
+      </Defs>
+      <Circle cx="50" cy="50" r="50" fill="url(#haloGlow)" />
+      <Circle cx="50" cy="50" r="40" fill="#F1EFEC" fillOpacity="0.45" />
+      <Circle cx="50" cy="50" r="30" fill="#EEEBE7" fillOpacity="0.45" />
+    </Svg>
+  </View>
+);
+
+const Onboarding = ({ onComplete, onReady }) => {
   const [currentPage, setCurrentPage] = useState(0);
+  const [stageSize, setStageSize] = useState(0);
+  const [images, setImages] = useState(null);
   const pagerRef = useRef(null);
-  const progressAnim = useRef(new Animated.Value(0)).current;
+  const insets = useSafeAreaInsets();
+  const { height: windowHeight } = useWindowDimensions();
   const orbitAnim = useRef(new Animated.Value(0)).current;
+
+  // Decode every illustration image before showing any of them
+  useEffect(() => {
+    let mounted = true;
+    preloadOnboardingImages().then((loaded) => {
+      if (mounted) setImages(loaded);
+    });
+    return () => { mounted = false; };
+  }, []);
+
+  // Tell the parent once the complete illustration has been laid out
+  const illustrationReady = images !== null && stageSize > 0;
+  useEffect(() => {
+    if (!illustrationReady) return;
+    const frame = requestAnimationFrame(() => onReady?.());
+    return () => cancelAnimationFrame(frame);
+  }, [illustrationReady]);
 
   // Auto-slide every 5 seconds
   useEffect(() => {
@@ -115,15 +160,8 @@ const Onboarding = ({ onComplete }) => {
     return () => clearInterval(interval);
   }, [currentPage]);
 
-  // Animate progress bar & orbit on page change
+  // Orbit the food around the character on page change
   useEffect(() => {
-    Animated.timing(progressAnim, {
-      toValue: (currentPage + 1) / slides.length,
-      duration: 400,
-      useNativeDriver: false,
-    }).start();
-
-    // Trigger orbit rotation
     orbitAnim.setValue(0);
     Animated.timing(orbitAnim, {
       toValue: 1,
@@ -142,104 +180,115 @@ const Onboarding = ({ onComplete }) => {
     outputRange: ['0deg', '-360deg']
   });
 
-  const currentSlide = slides[currentPage];
-  const currentFoods = FOOD_DATA[currentPage] || FOOD_DATA[0];
+  const currentFoodIndices = FOOD_DATA[currentPage] || FOOD_DATA[0];
+
+  // Largest square that fits the available area, with side breathing room
+  const onStageLayout = (e) => {
+    const { width, height } = e.nativeEvent.layout;
+    setStageSize(Math.min(width - 32, height, MAX_STAGE_SIZE));
+  };
+
+  const foodSize = stageSize * 0.26;
+
+  // Edge-to-edge: the window runs under the status and navigation bars, so
+  // the real space available is what's left after the insets.
+  const usableHeight = windowHeight - insets.top - insets.bottom;
+  const compact = usableHeight < COMPACT_HEIGHT;
+
+  // Minimal loading state; normally hidden behind the native splash screen
+  if (!images) {
+    return (
+      <View style={styles.loading}>
+        <StatusBar style="dark" />
+        <ActivityIndicator size="small" color={COLORS.textMuted} />
+      </View>
+    );
+  }
 
   return (
-    <View style={styles.container}>
-      {/* RADIAL GRADIENT BACKGROUND */}
-      <View style={StyleSheet.absoluteFill} pointerEvents="none">
-        <Svg height="100%" width="100%">
-          <Defs>
-            <RadialGradient id="bgGrad" cx="50%" cy="50%" rx="50%" ry="50%">
-              <Stop offset="0%" stopColor="#FFFFFF" stopOpacity="1" />
-              <Stop offset="100%" stopColor="#F2CF0D" stopOpacity="1" />
-            </RadialGradient>
-          </Defs>
-          <Rect x="0" y="0" width="100%" height="100%" fill="url(#bgGrad)" />
-        </Svg>
-      </View>
+    <View
+      style={[
+        styles.safeArea,
+        {
+          paddingTop: insets.top,
+          paddingLeft: insets.left,
+          paddingRight: insets.right,
+        },
+      ]}
+    >
+      <StatusBar style="dark" />
 
-      {/* SUBTLE TOP HIGHLIGHT */}
-      <LinearGradient
-        colors={['rgba(255,255,255,0.35)', 'transparent']}
-        style={styles.topHighlight}
-      />
+      <Text style={[styles.welcome, compact && styles.welcomeCompact]}>Welcome Organizers</Text>
 
-      {/* BACKGROUND RINGS */}
-      <View style={styles.circleBackground} pointerEvents="none">
-        <Image source={bgCircleAsset} style={{ width: width * 0.9, height: width * 0.9 }} contentFit="contain" />
-      </View>
+      <View style={styles.body}>
+        {/* ILLUSTRATION — halo behind, character + decorations in front */}
+        <View style={styles.stageArea} onLayout={onStageLayout} pointerEvents="none">
+          {stageSize > 0 && (
+            <View style={{ width: stageSize, height: stageSize }}>
+              <CircularHalo />
 
-      {/* HEADER — logo + brand name */}
-      <View style={styles.fixedHeader} pointerEvents="none">
-        <View style={styles.logoCol}>
-          <Image source={logoAsset} style={styles.logoIcon} contentFit="contain" />
-          <Text style={styles.logoName}>vizhaa</Text>
+              <View style={StyleSheet.absoluteFill}>
+                <Image source={images.decor} style={styles.decor} contentFit="contain" />
+                <Image
+                  source={images.man}
+                  style={[styles.character, { transform: [{ translateY: -stageSize * CHARACTER_LIFT }] }]}
+                  contentFit="contain"
+                />
+
+                {POPPER_POSITIONS.map((pos, index) => (
+                  <Image
+                    key={index}
+                    source={images.popper}
+                    style={[styles.popper, { width: foodSize, height: foodSize }, pos]}
+                    contentFit="contain"
+                  />
+                ))}
+
+                <Animated.View style={[StyleSheet.absoluteFill, { transform: [{ rotate: ringRotate }] }]}>
+                  {currentFoodIndices.map((foodIndex, index) => (
+                    <AnimatedFoodItem
+                      key={index}
+                      source={images.food[foodIndex]}
+                      style={[styles.foodItem, { width: foodSize, height: foodSize }, UNIFIED_FOOD_POSITIONS[index]]}
+                      delay={index * 800}
+                      counterRotate={counterRotate}
+                    />
+                  ))}
+                </Animated.View>
+              </View>
+            </View>
+          )}
         </View>
-      </View>
 
-      {/* CENTER AVATAR & FLOATING FOOD */}
-      <View style={styles.avatarContainer} pointerEvents="none">
-        {POPPER_POSITIONS.map((pos, index) => (
-          <Image key={index} source={popperAsset} style={[styles.popper, pos]} contentFit="contain" />
-        ))}
+        {/* Reserves room for the title rendered by the pager below */}
+        <View style={styles.titleSlot} />
 
-        <Image source={manAsset} style={styles.centerAvatar} contentFit="contain" />
-        <Image source={decorAsset} style={styles.decorOverlay} contentFit="contain" />
-
-        <Animated.View style={[styles.orbitContainer, { transform: [{ rotate: ringRotate }] }]} pointerEvents="none">
-          <AnimatedFoodItem
-            source={currentFoods[0].source}
-            style={[styles.foodItem, currentFoods[0].style]}
-            delay={0}
-            counterRotate={counterRotate}
-          />
-          <AnimatedFoodItem
-            source={currentFoods[1].source}
-            style={[styles.foodItem, currentFoods[1].style]}
-            delay={800}
-            counterRotate={counterRotate}
-          />
-          <AnimatedFoodItem
-            source={currentFoods[2].source}
-            style={[styles.foodItem, currentFoods[2].style]}
-            delay={1600}
-            counterRotate={counterRotate}
-          />
-        </Animated.View>
-      </View>
-
-      {/* PAGER — horizontal slide text */}
-      <PagerView
-        ref={pagerRef}
-        style={styles.pagerView}
-        initialPage={0}
-        onPageSelected={(e) => setCurrentPage(e.nativeEvent.position)}
-      >
-        {slides.map((slide, index) => (
-          <View key={index} style={styles.slideContainer}>
-            <OnboardingSlide title={slide.title} subtitle={slide.subtitle} />
-          </View>
-        ))}
-      </PagerView>
-
-      {/* FIXED FOOTER */}
-      <View style={styles.fixedFooter} pointerEvents="box-none">
-
-        {/* Step indicator dots */}
-        <View style={styles.paginationContainer}>
-          {slides.map((_, i) => (
-            <View
-              key={i}
-              style={[
-                styles.dot,
-                currentPage === i ? styles.activeDot : styles.inactiveDot,
-              ]}
-            />
+        {/* PAGER — full-area swipe layer; each page draws its title in the title slot */}
+        <PagerView
+          ref={pagerRef}
+          style={StyleSheet.absoluteFill}
+          initialPage={0}
+          onPageSelected={(e) => setCurrentPage(e.nativeEvent.position)}
+        >
+          {slides.map((slide, index) => (
+            <View key={index} style={styles.page}>
+              <View style={styles.titleSlot}>
+                <OnboardingSlide title={slide.title} subtitle={slide.subtitle} />
+              </View>
+            </View>
           ))}
-        </View>
+        </PagerView>
+      </View>
 
+      {/* FOOTER */}
+      {/* Sits above the navigation bar: 3-button nav gives a tall inset, gesture nav a short one */}
+      <View
+        style={[
+          styles.footer,
+          compact && styles.footerCompact,
+          { paddingBottom: insets.bottom + BOTTOM_GAP },
+        ]}
+      >
         {/* Legal */}
         <Text style={styles.footerText}>
           By continuing, you accept{' '}
@@ -250,12 +299,7 @@ const Onboarding = ({ onComplete }) => {
 
         {/* CTA Button */}
         <TouchableOpacity style={styles.button} activeOpacity={0.85} onPress={onComplete}>
-          <LinearGradient
-            colors={['#1A1A1A', '#000000']}
-            style={styles.buttonGradient}
-          >
-            <Text style={styles.buttonText}>Plan Your Dream Day</Text>
-          </LinearGradient>
+          <Text style={styles.buttonText}>Plan Your Dream Day</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -263,164 +307,115 @@ const Onboarding = ({ onComplete }) => {
 };
 
 const styles = StyleSheet.create({
-  container: {
+  safeArea: {
+    flex: 1,
+    backgroundColor: COLORS.background,
+  },
+  loading: {
+    flex: 1,
+    backgroundColor: COLORS.background,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  welcome: {
+    marginTop: 40,
+    marginBottom: 8,
+    textAlign: 'center',
+    fontSize: 20,
+    fontFamily: 'Outfit_600SemiBold',
+    color: COLORS.charcoal,
+    letterSpacing: 0.3,
+  },
+  welcomeCompact: {
+    marginTop: 16,
+    marginBottom: 0,
+  },
+  body: {
     flex: 1,
   },
 
-  topHighlight: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: height * 0.3,
-    zIndex: 1,
-  },
-
-  circleBackground: {
-    ...StyleSheet.absoluteFillObject,
-    justifyContent: 'center',
+  // ─── Illustration ─────────────────────────────────────────
+  stageArea: {
+    flex: 1,
     alignItems: 'center',
-    zIndex: 2,
-    top: -85,
+    justifyContent: 'center',
   },
-
-  // ─── Header ───────────────────────────────────────────────
-  fixedHeader: {
+  decor: {
     position: 'absolute',
-    top: 75,
     width: '100%',
-    alignItems: 'center',
-    zIndex: 100,
+    height: '100%',
+    left: '4.5%',
+    top: '4%',
   },
-  logoCol: {
-    alignItems: 'center',
-    gap: 4,
-  },
-  logoIcon: {
-    width: 44,
-    height: 44,
-  },
-  logoName: {
-    fontSize: 28,
-    fontFamily: 'Outfit_700Bold',
-    color: '#2C1206',
-    letterSpacing: 1,
-  },
-  avatarContainer: {
-    ...StyleSheet.absoluteFillObject,
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 10,
-    top: -170,
-  },
-  orbitContainer: {
+  character: {
     position: 'absolute',
-    width: width,
-    height: width * 1.2,
-  },
-  centerAvatar: {
-    width: width * 0.55,
-    height: width * 0.55,
-    zIndex: 2,
-    marginTop: 60,
-    marginLeft: 35,
-  },
-  decorOverlay: {
-    position: 'absolute',
-    width: width * 0.90,
-    height: width * 0.90,
-    zIndex: 0,
-    marginTop: 60,
-    marginLeft: 35,
+    width: '61%',
+    height: '61%',
+    left: '24%',
+    top: '23.5%',
   },
   popper: {
     position: 'absolute',
-    width: 120,
-    height: 120,
     opacity: 0.8,
   },
   foodItem: {
     position: 'absolute',
-    zIndex: 3,
   },
 
   // ─── Pager ────────────────────────────────────────────────
-  pagerView: {
-    flex: 1,
-    zIndex: 50,
+  titleSlot: {
+    height: TITLE_HEIGHT,
   },
-  slideContainer: {
-    width,
-    height,
+  page: {
+    flex: 1,
+    justifyContent: 'flex-end',
   },
 
   // ─── Footer ───────────────────────────────────────────────
-  fixedFooter: {
-    position: 'absolute',
-    bottom: 36,
-    width: '100%',
+  footer: {
     alignItems: 'center',
-    paddingHorizontal: 28,
-    zIndex: 100,
+    paddingHorizontal: 24,
+    paddingTop: 20,
   },
-
-  paginationContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 20,
-    gap: 6,
-  },
-  dot: {
-    height: 7,
-    borderRadius: 4,
-  },
-  activeDot: {
-    width: 32,
-    backgroundColor: '#2C1206',
-  },
-  inactiveDot: {
-    width: 7,
-    backgroundColor: 'rgba(44,18,6,0.25)',
+  footerCompact: {
+    paddingTop: 8,
   },
 
   footerText: {
-    fontSize: 11,
-    color: 'rgba(44,18,6,0.65)',
+    fontSize: 12,
+    color: COLORS.textMuted,
     marginBottom: 16,
     fontFamily: 'Outfit_400Regular',
     textAlign: 'center',
-    lineHeight: 17,
+    lineHeight: 18,
   },
   link: {
     fontFamily: 'Outfit_600SemiBold',
-    color: '#2C1206',
+    color: COLORS.textStrong,
+    textDecorationLine: 'underline',
+    textDecorationColor: COLORS.underline,
   },
 
   // CTA button
   button: {
     width: '100%',
     height: 56,
-    borderRadius: 14,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.25,
-    shadowRadius: 14,
-    elevation: 8,
-  },
-  buttonGradient: {
-    flex: 1,
-    flexDirection: 'row',
+    borderRadius: 4,
+    backgroundColor: COLORS.charcoal,
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.14,
+    shadowRadius: 16,
+    elevation: 4,
   },
   buttonText: {
-    color: '#F2CF0D',
-    fontSize: 12,
-    fontFamily: 'Outfit_500Medium',
-    letterSpacing: 0,
-    textAlign: 'center',
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontFamily: 'Outfit_600SemiBold',
+    letterSpacing: 0.2,
   },
 });
 

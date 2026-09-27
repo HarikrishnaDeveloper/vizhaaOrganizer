@@ -21,11 +21,8 @@ export const tokenStore = {
 const request = async (path, options = {}) => {
   const url = `${BACKEND_URL}${path}`;
   
-  console.log(`\n[API REQUEST] => ${options.method || 'GET'} ${url}`);
-  if (options.body) {
-    try { console.log(`[REQUEST BODY]`, JSON.parse(options.body)); } 
-    catch(e) { console.log(`[REQUEST BODY]`, options.body); }
-  }
+  // Bodies and responses are never logged: they carry OTPs and auth tokens
+  if (__DEV__) console.log(`\n[API REQUEST] => ${options.method || 'GET'} ${url}`);
 
   const res = await fetch(url, {
     ...options,
@@ -37,7 +34,7 @@ const request = async (path, options = {}) => {
   });
   
   const data = await res.json();
-  console.log(`[API RESPONSE] <= ${res.status} ${url}`, data);
+  if (__DEV__) console.log(`[API RESPONSE] <= ${res.status} ${url}`);
 
   if (!res.ok) {
     const errorMsg = data.error ? `${data.message}: ${data.error}` : data.message || 'Request failed';
