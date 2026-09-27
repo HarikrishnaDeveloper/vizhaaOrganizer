@@ -1,25 +1,26 @@
 import { useState } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, StyleSheet,
+  View, Text, TouchableOpacity, StyleSheet,
   ScrollView, Alert, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
-import { LinearGradient } from 'expo-linear-gradient';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
 import BlobBackground from './BlobBackground';
 import { api } from '../services/api';
+import TextInput from './ui/ThemedTextInput';
+import { COLORS, colors, fonts, radii, buttons, input, alpha } from '../theme';
+import PrimaryButton from './ui/PrimaryButton';
 
 const Field = ({ label, value, onChangeText, placeholder, keyboardType, multiline, autoCapitalize, onPress, editable = true }) => (
   <TouchableOpacity activeOpacity={onPress ? 0.7 : 1} onPress={onPress} style={styles.fieldWrap}>
     <Text style={styles.fieldLabel}>{label}</Text>
     <View style={{ position: 'relative' }}>
       <TextInput
-        style={[styles.fieldInput, multiline && styles.fieldInputMulti, !editable && { color: '#333' }]}
+        style={[styles.fieldInput, multiline && styles.fieldInputMulti, !editable && { color: colors.text }]}
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder}
-        placeholderTextColor="#BBB"
         keyboardType={keyboardType || 'default'}
         autoCapitalize={autoCapitalize || 'words'}
         multiline={multiline}
@@ -28,7 +29,7 @@ const Field = ({ label, value, onChangeText, placeholder, keyboardType, multilin
         pointerEvents={onPress ? 'none' : 'auto'}
       />
       {onPress && (
-        <Ionicons name="calendar-outline" size={20} color="#888" style={styles.inputIcon} />
+        <Ionicons name="calendar-outline" size={20} color={colors.icon} style={styles.inputIcon} />
       )}
     </View>
   </TouchableOpacity>
@@ -36,7 +37,7 @@ const Field = ({ label, value, onChangeText, placeholder, keyboardType, multilin
 
 const CompleteProfile = ({ onDone }) => {
   const [form, setForm] = useState({
-    name: '', role: '', dob: null, email: '', city: '', gst: '', companyName: '',
+    name: '', dob: null, email: '', city: '', gst: '', companyName: '',
   });
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -52,7 +53,6 @@ const CompleteProfile = ({ onDone }) => {
 
   const handleSave = async () => {
     if (!form.name.trim())         { Alert.alert('Required', 'Please enter your full name'); return; }
-    if (!form.role.trim())         { Alert.alert('Required', 'Please enter your role (e.g. Organizer)'); return; }
     if (!form.dob)                 { Alert.alert('Required', 'Please select your date of birth'); return; }
     if (!form.email.includes('@')) { Alert.alert('Required', 'Please enter a valid email'); return; }
     if (!form.city.trim())         { Alert.alert('Required', 'Please enter your city'); return; }
@@ -83,11 +83,10 @@ const CompleteProfile = ({ onDone }) => {
 
             <Text style={styles.sectionLabel}>REQUIRED</Text>
             <Field label="Full Name" value={form.name} onChangeText={set('name')} placeholder="John Doe" />
-            <Field label="Role" value={form.role} onChangeText={set('role')} placeholder="e.g. Organizer" />
-            <Field 
-              label="Date of Birth" 
-              value={form.dob ? form.dob.toLocaleDateString() : ''} 
-              placeholder="DD/MM/YYYY" 
+            <Field
+              label="Date of Birth"
+              value={form.dob ? form.dob.toLocaleDateString() : ''}
+              placeholder="DD/MM/YYYY"
               onPress={() => setShowDatePicker(true)}
               editable={false}
             />
@@ -120,19 +119,14 @@ const CompleteProfile = ({ onDone }) => {
               autoCapitalize="characters"
             />
 
-            <TouchableOpacity
+            <PrimaryButton
               style={[styles.btn, loading && styles.btnDim]}
               onPress={handleSave}
               disabled={loading}
               activeOpacity={0.85}
             >
-              <LinearGradient
-                colors={loading ? ['#666', '#444'] : ['#1A1A1A', '#000']}
-                style={styles.btnGradient}
-              >
-                <Text style={styles.btnText}>{loading ? 'Saving...' : 'Next: Business Type'}</Text>
-              </LinearGradient>
-            </TouchableOpacity>
+              <Text style={styles.btnText}>{loading ? 'Saving...' : 'Next: Business Type'}</Text>
+            </PrimaryButton>
           </BlurView>
         </View>
       </ScrollView>
@@ -143,7 +137,7 @@ const CompleteProfile = ({ onDone }) => {
 const styles = StyleSheet.create({
   scroll: {
     flex: 1,
-    backgroundColor: '#FFF',
+    backgroundColor: colors.background,
   },
   scrollContent: {
     flexGrow: 1,
@@ -154,34 +148,35 @@ const styles = StyleSheet.create({
   cardContainer: {
     borderRadius: 28,
     overflow: 'hidden',
-    shadowColor: '#000',
+    borderWidth: 1,
+    borderColor: colors.border,
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.15,
+    shadowOpacity: 0.1,
     shadowRadius: 24,
-    elevation: 10,
+    elevation: 8,
   },
   card: {
     padding: 28,
-    backgroundColor: 'rgba(255, 255, 255, 0.7)',
+    backgroundColor: alpha(COLORS.white, 0.85),
   },
   title: {
     fontSize: 26,
-    fontFamily: 'Outfit_700Bold',
-    color: '#111',
+    fontFamily: fonts.bold,
+    color: colors.text,
     marginBottom: 6,
-    letterSpacing: 0.5,
   },
   subtitle: {
     fontSize: 13,
-    fontFamily: 'Outfit_400Regular',
-    color: '#666',
+    fontFamily: fonts.regular,
+    color: colors.textSecondary,
     marginBottom: 26,
     lineHeight: 18,
   },
   sectionLabel: {
     fontSize: 10,
-    fontFamily: 'Outfit_700Bold',
-    color: '#AAA',
+    fontFamily: fonts.bold,
+    color: colors.textMuted,
     letterSpacing: 1.5,
     marginBottom: 12,
   },
@@ -190,20 +185,15 @@ const styles = StyleSheet.create({
   },
   fieldLabel: {
     fontSize: 13,
-    fontFamily: 'Outfit_600SemiBold',
-    color: '#444',
+    fontFamily: fonts.semibold,
+    color: colors.textHeading,
     marginBottom: 6,
   },
   fieldInput: {
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#E8E8E8',
+    ...input,
     height: 50,
     paddingHorizontal: 16,
     fontSize: 15,
-    fontFamily: 'Outfit_400Regular',
-    color: '#111',
   },
   fieldInputMulti: {
     height: 90,
@@ -215,24 +205,14 @@ const styles = StyleSheet.create({
     top: 15,
   },
   btn: {
-    height: 54,
-    borderRadius: 14,
-    overflow: 'hidden',
+    ...buttons.primary,
     marginTop: 24,
   },
-  btnGradient: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
   btnDim: {
-    opacity: 0.6,
+    opacity: 0.7,
   },
   btnText: {
-    color: '#FFF',
-    fontSize: 16,
-    fontFamily: 'Outfit_600SemiBold',
-    letterSpacing: 0.5,
+    ...buttons.primaryText,
   },
 });
 

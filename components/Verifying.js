@@ -1,7 +1,7 @@
 import React, { useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, Animated } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import BlobBackground from './BlobBackground';
+import { colors, fonts } from '../theme';
 
 const Verifying = ({ onDone }) => {
   const progress = useRef(new Animated.Value(0)).current;
@@ -30,14 +30,7 @@ const Verifying = ({ onDone }) => {
           Do not press back or switch apps while we verify details.
         </Text>
         <View style={styles.track}>
-          <Animated.View style={[styles.fill, { width: barWidth }]}>
-            <LinearGradient
-              colors={['#E53935', '#FB8C00', '#FDD835', '#43A047', '#1E88E5', '#8E24AA']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={StyleSheet.absoluteFill}
-            />
-          </Animated.View>
+          <Animated.View style={[styles.fill, { width: barWidth }]} />
         </View>
       </View>
     </View>
@@ -47,16 +40,16 @@ const Verifying = ({ onDone }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.background,
     justifyContent: 'center',
     paddingHorizontal: 20,
   },
 
   card: {
-    backgroundColor: '#EBEBEB',
+    backgroundColor: colors.surfaceMuted,
     borderRadius: 28,
     padding: 32,
-    shadowColor: '#000',
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.1,
     shadowRadius: 24,
@@ -65,28 +58,28 @@ const styles = StyleSheet.create({
 
   title: {
     fontSize: 26,
-    fontFamily: 'Outfit_700Bold',
-    color: '#111',
+    fontFamily: fonts.bold,
+    color: colors.text,
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 12,
-    fontFamily: 'Outfit_400Regular',
-    color: '#888',
+    fontFamily: fonts.regular,
+    color: colors.textSecondary,
     lineHeight: 18,
     marginBottom: 32,
   },
 
   track: {
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#D8D8D8',
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: colors.disabled,
     overflow: 'hidden',
   },
   fill: {
     height: '100%',
-    borderRadius: 4,
-    overflow: 'hidden',
+    borderRadius: 3,
+    backgroundColor: colors.primary,
   },
 });
 

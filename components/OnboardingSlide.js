@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Animated } from 'react-native';
+import { colors } from '../theme';
 
 const OnboardingSlide = ({ title }) => {
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -59,7 +60,7 @@ const styles = StyleSheet.create({
     fontSize: 20,
     textAlign: 'center',
     fontFamily: 'Outfit_600SemiBold',
-    color: '#1C1C1E',
+    color: colors.text,
     lineHeight: 28,
     letterSpacing: 0.3,
   },

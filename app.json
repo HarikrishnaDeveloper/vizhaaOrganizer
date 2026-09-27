@@ -33,7 +33,20 @@
           "backgroundColor": "#FFFFFF"
         }
       ],
-      "expo-status-bar"
+      "expo-status-bar",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Vizhaa uses your photos to set your profile picture.",
+          "cameraPermission": "Vizhaa uses the camera to take your profile picture."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Vizhaa uses your location to pin event venues on the map and find their address."
+        }
+      ]
     ]
   }
 }

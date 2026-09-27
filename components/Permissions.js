@@ -5,6 +5,8 @@ import * as Location from 'expo-location';
 import * as Notifications from 'expo-notifications';
 import * as Contacts from 'expo-contacts';
 import BlobBackground from './BlobBackground';
+import { colors, fonts } from '../theme';
+import PrimaryButton from './ui/PrimaryButton';
 
 const ITEMS = [
   {
@@ -69,18 +71,18 @@ const Permissions = ({ onAllow, onDeny }) => {
         </View>
       ))}
 
-      <TouchableOpacity 
-        style={styles.allowBtn} 
-        onPress={handleAllow} 
+      <PrimaryButton
+        style={styles.allowBtn}
+        onPress={handleAllow}
         activeOpacity={0.8}
         disabled={loading}
       >
         {loading ? (
-          <ActivityIndicator color="#fff" />
+          <ActivityIndicator color={colors.white} />
         ) : (
           <Text style={styles.allowBtnText}>Allow Permissions</Text>
         )}
-      </TouchableOpacity>
+      </PrimaryButton>
     </View>
   </View>
   );
@@ -89,18 +91,18 @@ const Permissions = ({ onAllow, onDeny }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.background,
     justifyContent: 'center',
     paddingHorizontal: 20,
   },
 
   card: {
-    backgroundColor: '#EBEBEB',
+    backgroundColor: colors.surfaceMuted,
     borderRadius: 28,
     paddingHorizontal: 24,
     paddingBottom: 28,
     paddingTop: 16,
-    shadowColor: '#000',
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.1,
     shadowRadius: 24,
@@ -115,8 +117,8 @@ const styles = StyleSheet.create({
   },
   denyText: {
     fontSize: 13,
-    fontFamily: 'Outfit_400Regular',
-    color: '#777',
+    fontFamily: fonts.regular,
+    color: colors.textTertiary,
   },
 
   row: {
@@ -126,19 +128,19 @@ const styles = StyleSheet.create({
   },
   rowBorder: {
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0,0,0,0.07)',
+    borderBottomColor: colors.border,
   },
   rowInfo: { flex: 1, paddingRight: 12 },
   rowTitle: {
     fontSize: 17,
-    fontFamily: 'Outfit_700Bold',
-    color: '#111',
+    fontFamily: fonts.bold,
+    color: colors.text,
     marginBottom: 4,
   },
   rowDesc: {
     fontSize: 12,
-    fontFamily: 'Outfit_400Regular',
-    color: '#666',
+    fontFamily: fonts.regular,
+    color: colors.textSecondary,
     lineHeight: 18,
   },
 
@@ -146,28 +148,28 @@ const styles = StyleSheet.create({
     width: 26,
     height: 26,
     borderRadius: 13,
-    backgroundColor: '#4CAF50',
+    backgroundColor: colors.success,
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: 2,
   },
   checkIcon: {
-    color: '#FFF',
+    color: colors.white,
     fontSize: 13,
-    fontFamily: 'Outfit_700Bold',
+    fontFamily: fonts.bold,
   },
 
   allowBtn: {
-    backgroundColor: '#000',
+    backgroundColor: colors.primary,
     paddingVertical: 16,
     borderRadius: 100,
     alignItems: 'center',
     marginTop: 24,
   },
   allowBtnText: {
-    color: '#FFF',
+    color: colors.onPrimary,
     fontSize: 16,
-    fontFamily: 'Outfit_700Bold',
+    fontFamily: fonts.semibold,
   },
 });
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -6,19 +6,48 @@ import {
   ScrollView,
   TextInput,
   TouchableOpacity,
-  Dimensions,
-  ImageBackground,
   RefreshControl,
   ActivityIndicator
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons, MaterialCommunityIcons, FontAwesome5 } from '@expo/vector-icons';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../services/api';
-import BottomTabBar from './BottomTabBar';
+import BottomTabBar, { TAB_BAR_HEIGHT } from './BottomTabBar';
+import { colors, fonts, radii, shadows, alpha, COLORS } from '../theme';
+import PrimaryButton from './ui/PrimaryButton';
 
-const { width } = Dimensions.get('window');
+const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December'];
+const WEEKDAYS = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
+const FAB_HEIGHT = 56;
+
+// Event dates are stored as "DD/MM/YYYY" by the app; also accept ISO/other
+// parseable strings. Returns a local-midnight Date or null.
+const parseEventDate = (event) => {
+  const raw = event?.date || event?.inDate;
+  if (!raw) return null;
+  const dmy = String(raw).match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
+  if (dmy) return new Date(Number(dmy[3]), Number(dmy[2]) - 1, Number(dmy[1]));
+  const d = new Date(raw);
+  return Number.isNaN(d.getTime()) ? null : new Date(d.getFullYear(), d.getMonth(), d.getDate());
+};
+
+const dayKey = (d) => `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+const formatDate = (d) => (d ? `${d.getDate()} ${MONTHS[d.getMonth()].slice(0, 3)} ${d.getFullYear()}` : '');
+
+// Status pill: semantic colours only where the status carries meaning
+const STATUS_STYLES = {
+  'In Progress': { label: 'In progress', color: COLORS.primaryDark, bg: alpha(COLORS.primary, 0.14) },
+  Upcoming: { label: 'Upcoming', color: COLORS.primaryDark, bg: alpha(COLORS.primary, 0.14) },
+  APPROVED: { label: 'Confirmed', color: COLORS.primaryDark, bg: alpha(COLORS.primary, 0.14) },
+  Completed: { label: 'Completed', color: COLORS.text, bg: alpha(COLORS.success, 0.16) },
+  PENDING: { label: 'Pending approval', color: COLORS.text, bg: alpha(COLORS.warning, 0.2) },
+  REJECTED: { label: 'Rejected', color: COLORS.text, bg: alpha(COLORS.error, 0.16) },
+};
+const statusStyle = (status) =>
+  STATUS_STYLES[status] || { label: status || 'Scheduled', color: COLORS.textSecondary, bg: COLORS.surfaceSecondary };
 
 const Dashboard = ({ onAddEvent, onNavigate, onEventPress }) => {
   const { user } = useAuth();
@@ -29,6 +58,12 @@ const Dashboard = ({ onAddEvent, onNavigate, onEventPress }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [view, setView] = useState('list'); // 'list' | 'calendar'
+  const insets = useSafeAreaInsets();
+
+  const today = useMemo(() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), d.getDate()); }, []);
+  const [month, setMonth] = useState(() => new Date(today.getFullYear(), today.getMonth(), 1));
+  const [selectedDay, setSelectedDay] = useState(today);
 
   const fetchEvents = useCallback(async () => {
     try {
@@ -71,659 +106,626 @@ const Dashboard = ({ onAddEvent, onNavigate, onEventPress }) => {
   const activeEvents = filteredEvents.filter(e => e.status === 'In Progress');
   const upcomingEvents = filteredEvents.filter(e => e.status === 'Upcoming');
 
+  // List view: soonest first, undated events last
+  const sortedEvents = useMemo(() => [...filteredEvents].sort((a, b) => {
+    const da = parseEventDate(a);
+    const db = parseEventDate(b);
+    if (!da && !db) return 0;
+    if (!da) return 1;
+    if (!db) return -1;
+    return da - db;
+  }), [filteredEvents]);
+
+  // Calendar view: events grouped by day
+  const eventsByDay = useMemo(() => {
+    const map = {};
+    filteredEvents.forEach((e) => {
+      const d = parseEventDate(e);
+      if (d) (map[dayKey(d)] = map[dayKey(d)] || []).push(e);
+    });
+    return map;
+  }, [filteredEvents]);
+  const selectedEvents = eventsByDay[dayKey(selectedDay)] || [];
+
+  const hasEvents = events.length > 0;
+  const bottomSpace = TAB_BAR_HEIGHT + insets.bottom;
+
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#7B3F00']} />}
+        // Room for the tab bar and the floating button, so nothing ends up under them
+        contentContainerStyle={{ paddingBottom: bottomSpace + FAB_HEIGHT + 32 }}
+        keyboardShouldPersistTaps="handled"
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} tintColor={colors.primary} />}
       >
-
-        {/* Header Section */}
-        <LinearGradient
-          colors={['#2C1206', '#5C2E00']}
-          style={styles.header}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-        >
-          <View style={styles.headerTop}>
-            <View style={styles.userInfo}>
-              <View style={styles.avatarCircle}>
-                <Text style={styles.avatarInitial}>{userName[0]}</Text>
-              </View>
-              <View>
-                <Text style={styles.welcomeText}>Welcome back,</Text>
-                <Text style={styles.userName}>{userName}!</Text>
-              </View>
+        {/* Header */}
+        <View style={styles.header}>
+          <View style={styles.userInfo}>
+            <View style={styles.avatarCircle}>
+              {user?.profilePhotoUrl
+                ? <Image source={{ uri: user.profilePhotoUrl }} style={styles.avatarImage} contentFit="cover" />
+                : <Text style={styles.avatarInitial}>{userName[0]}</Text>}
             </View>
-            <TouchableOpacity style={styles.notificationBtn}>
-              <Ionicons name="notifications-outline" size={24} color="#FFF" />
-              <View style={styles.dot} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.welcomeText}>Welcome back,</Text>
+              <Text style={styles.userName} numberOfLines={1}>{userName}</Text>
+            </View>
+          </View>
+          <TouchableOpacity style={styles.notificationBtn} accessibilityLabel="Notifications">
+            <Ionicons name="notifications-outline" size={22} color={colors.primary} />
+          </TouchableOpacity>
+        </View>
+
+        {/* Statistics */}
+        <View style={styles.statsRow}>
+          <StatItem label="Active" value={String(activeEvents.length).padStart(2, '0')} icon="flash-outline" />
+          <StatItem label="Upcoming" value={String(upcomingEvents.length).padStart(2, '0')} icon="time-outline" />
+          <StatItem label="Completed" value={String(events.filter(e => e.status === 'Completed').length).padStart(2, '0')} icon="checkmark-circle-outline" />
+        </View>
+
+        {/* Search */}
+        <View style={styles.searchBar}>
+          <Ionicons name="search" size={20} color={colors.textSecondary} />
+          <TextInput
+            placeholder="Search your events..."
+            style={styles.searchInput}
+            placeholderTextColor={colors.textMuted}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+          />
+          {searchQuery ? (
+            <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={8}>
+              <Ionicons name="close-circle" size={18} color={colors.textMuted} />
             </TouchableOpacity>
-          </View>
-
-          {/* Quick Stats */}
-          <View style={styles.statsRow}>
-            <StatItem label="Active" value={String(activeEvents.length).padStart(2, '0')} icon="flash" color="#FFD700" />
-            <StatItem label="Upcoming" value={String(upcomingEvents.length).padStart(2, '0')} icon="time" color="#FFF" />
-            <StatItem label="Completed" value={String(events.filter(e => e.status === 'Completed').length).padStart(2, '0')} icon="checkmark-circle" color="#4CAF50" />
-          </View>
-        </LinearGradient>
-
-        {/* Search Section */}
-        <View style={styles.searchSection}>
-          <View style={styles.searchBar}>
-            <Ionicons name="search" size={20} color="#999" />
-            <TextInput
-              placeholder="Search your events..."
-              style={styles.searchInput}
-              placeholderTextColor="#BBB"
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-            />
-          </View>
+          ) : null}
         </View>
 
         {loading ? (
-          <View style={{ padding: 40, alignItems: 'center' }}>
-            <ActivityIndicator size="large" color="#7B3F00" />
+          <View style={styles.loading}>
+            <ActivityIndicator size="large" color={colors.primary} />
+          </View>
+        ) : !hasEvents ? (
+          /* Empty state — the floating button is the only "add" action */
+          <View style={styles.emptyState}>
+            <View style={styles.emptyIcon}>
+              <MaterialCommunityIcons name="calendar-blank-outline" size={40} color={colors.primary} />
+            </View>
+            <Text style={styles.emptyTitle}>No events found yet.</Text>
+            <Text style={styles.emptyText}>Add an event to get started.</Text>
           </View>
         ) : (
           <>
-            {/* Active Event Section */}
-            {activeEvents.length > 0 && (
-              <>
-                <View style={styles.sectionHeader}>
-                  <Text style={styles.sectionTitle}>Active Event</Text>
-                  <TouchableOpacity onPress={() => onNavigate('status')}>
-                    <Text style={styles.seeAll}>View All</Text>
-                  </TouchableOpacity>
-                </View>
-
-                {activeEvents.slice(0, 1).map(event => (
+            {/* Section header + view switch */}
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>My Events</Text>
+              <View style={styles.segment}>
+                {['list', 'calendar'].map((v) => (
                   <TouchableOpacity
-                    key={event.id}
-                    style={styles.activeCardContainer}
-                    activeOpacity={0.9}
-                    onPress={() => onEventPress(event)}
+                    key={v}
+                    style={[styles.segmentBtn, view === v && styles.segmentBtnOn]}
+                    onPress={() => setView(v)}
+                    activeOpacity={0.8}
                   >
-                    <LinearGradient
-                      colors={['#FFF', '#FDFBF7']}
-                      style={styles.activeCard}
-                    >
-                      <View style={styles.cardTop}>
-                        <View style={[styles.typeBadge, { backgroundColor: '#FFD70022' }]}>
-                          <MaterialCommunityIcons
-                            name={event.type === 'wedding' ? 'ring' : event.type === 'corporate' ? 'briefcase' : 'party-popper'}
-                            size={16} color="#7B3F00"
-                          />
-                          <Text style={styles.typeBadgeText}>{event.type}</Text>
-                        </View>
-                        <View style={styles.liveBadge}>
-                          <View style={styles.liveDot} />
-                          <Text style={styles.liveText}>LIVE</Text>
-                        </View>
-                      </View>
-
-                      <Text style={styles.eventTitle}>{event.name}</Text>
-                      <View style={styles.infoRow}>
-                        <Ionicons name="location-sharp" size={14} color="#7B3F00" />
-                        <Text style={styles.infoText} numberOfLines={1}>{event.location}</Text>
-                      </View>
-
-                      <View style={styles.progressContainer}>
-                        <View style={styles.progressHeader}>
-                          <Text style={styles.progressLabel}>Execution Progress</Text>
-                          <Text style={styles.progressValue}>{Math.round((event.progress || 0) * 100)}%</Text>
-                        </View>
-                        <View style={styles.progressBarBg}>
-                          <LinearGradient
-                            colors={['#7B3F00', '#B08040']}
-                            style={[styles.progressBarFill, { width: `${(event.progress || 0) * 100}%` }]}
-                            start={{ x: 0, y: 0 }}
-                            end={{ x: 1, y: 0 }}
-                          />
-                        </View>
-                      </View>
-
-                      <View style={styles.cardFooter}>
-                        <View style={styles.footerItem}>
-                          <Ionicons name="calendar" size={14} color="#999" />
-                          <Text style={styles.footerText}>{event.date}</Text>
-                        </View>
-                        <View style={styles.footerItem}>
-                          <Ionicons name="people" size={14} color="#999" />
-                          <Text style={styles.footerText}>{event.suppliers} Suppliers</Text>
-                        </View>
-                        <TouchableOpacity style={styles.trackBtn} onPress={() => onEventPress(event)}>
-                          <Text style={styles.trackText}>Track</Text>
-                        </TouchableOpacity>
-                      </View>
-                    </LinearGradient>
+                    <Ionicons
+                      name={v === 'list' ? 'list-outline' : 'calendar-outline'}
+                      size={15}
+                      color={view === v ? colors.white : colors.textSecondary}
+                    />
+                    <Text style={[styles.segmentText, view === v && styles.segmentTextOn]}>
+                      {v === 'list' ? 'List' : 'Calendar'}
+                    </Text>
                   </TouchableOpacity>
                 ))}
-              </>
-            )}
+              </View>
+            </View>
 
-            {/* Upcoming Events Section - Only show if there are events */}
-            {events.length > 0 && (
+            {view === 'list' ? (
+              sortedEvents.length ? (
+                sortedEvents.map((event) => (
+                  <EventCard key={event.id} event={event} onPress={() => onEventPress(event)} />
+                ))
+              ) : (
+                <Text style={styles.noResults}>No events match “{searchQuery}”.</Text>
+              )
+            ) : (
               <>
-                <View style={styles.sectionHeader}>
-                  <Text style={styles.sectionTitle}>{upcomingEvents.length > 0 ? 'Upcoming Events' : 'Quick Actions'}</Text>
-                </View>
-
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.upcomingScroll}>
-                  {upcomingEvents.map(event => (
-                    <TouchableOpacity
-                      key={event.id}
-                      style={styles.upcomingCard}
-                      onPress={() => onEventPress(event)}
-                    >
-                      <View style={styles.dateBox}>
-                        <Text style={styles.dateDay}>{event.date.split('/')[0] || event.date.split(' ')[0]}</Text>
-                        <Text style={styles.dateMonth}>{event.date.split('/')[1] ? 'MON' : (event.date.split(' ')[1] || 'DAY')}</Text>
-                      </View>
-                      <View style={styles.upcomingContent}>
-                        <Text style={styles.upcomingTitle} numberOfLines={1}>{event.name}</Text>
-                        <Text style={styles.upcomingLoc} numberOfLines={1}>{event.location}</Text>
-                        <View style={styles.upcomingMeta}>
-                          <Ionicons name="time-outline" size={12} color="#888" />
-                          <Text style={styles.upcomingTime}>{event.inTime}</Text>
-                        </View>
-                      </View>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
+                <MonthCalendar
+                  month={month}
+                  today={today}
+                  selectedDay={selectedDay}
+                  eventsByDay={eventsByDay}
+                  onSelect={setSelectedDay}
+                  onChangeMonth={(delta) => setMonth(m => new Date(m.getFullYear(), m.getMonth() + delta, 1))}
+                />
+                <Text style={styles.dayTitle}>
+                  Events on {selectedDay.getDate()} {MONTHS[selectedDay.getMonth()]}
+                </Text>
+                {selectedEvents.length ? (
+                  selectedEvents.map((event) => (
+                    <EventCard key={event.id} event={event} compact onPress={() => onEventPress(event)} />
+                  ))
+                ) : (
+                  <Text style={styles.noResults}>No events scheduled for this day.</Text>
+                )}
               </>
             )}
           </>
         )}
-
-        {/* Empty State - Only show if NO events at all */}
-        {!loading && events.length === 0 && (
-          <View style={styles.emptyState}>
-            <MaterialCommunityIcons name="calendar-blank-outline" size={60} color="#DDD" />
-            <Text style={styles.emptyText}>No events found yet.</Text>
-            <TouchableOpacity style={styles.emptyBtn} onPress={onAddEvent}>
-              <Text style={styles.emptyBtnText}>Create your first event</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-
-        {/* Banner Section */}
-        <TouchableOpacity style={styles.promoBanner}>
-          <LinearGradient
-            colors={['#FFD700', '#FFB800']}
-            style={styles.promoInner}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-          >
-            <View>
-              <Text style={styles.promoTitle}>Plan Better with Vizhaa</Text>
-              <Text style={styles.promoSub}>Get premium supplier contacts</Text>
-            </View>
-            <MaterialCommunityIcons name="star-circle" size={40} color="#2C1206" opacity={0.3} />
-          </LinearGradient>
-        </TouchableOpacity>
-
       </ScrollView>
 
       <BottomTabBar activeTab="dashboard" onNavigate={onNavigate} />
 
-      {/* Premium Extended Floating Action Button (FAB) */}
-      <TouchableOpacity 
-        style={styles.fab} 
+      {/* The single "add event" action, kept just above the tab bar */}
+      <PrimaryButton
+        style={[styles.fab, { bottom: bottomSpace + 16 }]}
         onPress={onAddEvent}
-        activeOpacity={0.9}
+        accessibilityLabel="Add Event"
       >
-        <LinearGradient
-          colors={['#7B3F00', '#4A2600']}
-          style={styles.fabGradient}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-        >
-          <Ionicons name="add" size={24} color="#FFF" />
-          <Text style={styles.fabText}>Add Event</Text>
-        </LinearGradient>
-      </TouchableOpacity>
+        <Ionicons name="add" size={22} color={colors.white} />
+        <Text style={styles.fabText}>Add Event</Text>
+      </PrimaryButton>
     </SafeAreaView>
   );
 };
 
-const StatItem = ({ label, value, icon, color }) => (
+const StatItem = ({ label, value, icon }) => (
   <View style={styles.statBox}>
-    <View style={[styles.statIconWrap, { backgroundColor: 'rgba(255,255,255,0.1)' }]}>
-      <Ionicons name={icon} size={18} color={color} />
+    <View style={styles.statIconWrap}>
+      <Ionicons name={icon} size={17} color={colors.primaryDark} />
     </View>
     <Text style={styles.statValue}>{value}</Text>
     <Text style={styles.statLabel}>{label}</Text>
   </View>
 );
 
+const EventCard = ({ event, compact, onPress }) => {
+  const date = parseEventDate(event);
+  const status = statusStyle(event.status);
+  const place = event.city || event.location;
+  return (
+    <TouchableOpacity style={styles.eventCard} onPress={onPress} activeOpacity={0.85}>
+      <View style={styles.eventTop}>
+        <Text style={styles.eventName} numberOfLines={1}>{event.name}</Text>
+        <View style={[styles.statusPill, { backgroundColor: status.bg }]}>
+          <Text style={[styles.statusText, { color: status.color }]}>{status.label}</Text>
+        </View>
+      </View>
+      {compact ? (
+        <Text style={styles.eventMeta} numberOfLines={1}>
+          {[event.inTime, place].filter(Boolean).join('  •  ')}
+        </Text>
+      ) : (
+        <View style={styles.eventRows}>
+          {date ? <MetaRow icon="calendar-outline" text={formatDate(date)} /> : null}
+          {event.inTime ? <MetaRow icon="time-outline" text={event.inTime} /> : null}
+          {place ? <MetaRow icon="location-outline" text={place} /> : null}
+        </View>
+      )}
+    </TouchableOpacity>
+  );
+};
+
+const MetaRow = ({ icon, text }) => (
+  <View style={styles.metaRow}>
+    <Ionicons name={icon} size={14} color={colors.textSecondary} />
+    <Text style={styles.metaText} numberOfLines={1}>{text}</Text>
+  </View>
+);
+
+const MonthCalendar = ({ month, today, selectedDay, eventsByDay, onSelect, onChangeMonth }) => {
+  const year = month.getFullYear();
+  const m = month.getMonth();
+  const daysInMonth = new Date(year, m + 1, 0).getDate();
+  const lead = (new Date(year, m, 1).getDay() + 6) % 7; // Monday-first
+  const cells = [...Array(lead).fill(null), ...Array.from({ length: daysInMonth }, (_, i) => i + 1)];
+  while (cells.length % 7) cells.push(null);
+
+  return (
+    <View style={styles.calendar}>
+      <View style={styles.calHeader}>
+        <TouchableOpacity style={styles.calNav} onPress={() => onChangeMonth(-1)} hitSlop={8} accessibilityLabel="Previous month">
+          <Ionicons name="chevron-back" size={18} color={colors.text} />
+        </TouchableOpacity>
+        <Text style={styles.calTitle}>{MONTHS[m]} {year}</Text>
+        <TouchableOpacity style={styles.calNav} onPress={() => onChangeMonth(1)} hitSlop={8} accessibilityLabel="Next month">
+          <Ionicons name="chevron-forward" size={18} color={colors.text} />
+        </TouchableOpacity>
+      </View>
+      <View style={styles.calRow}>
+        {WEEKDAYS.map((d) => <Text key={d} style={styles.calWeekday}>{d}</Text>)}
+      </View>
+      <View style={styles.calGrid}>
+        {cells.map((day, i) => {
+          if (!day) return <View key={i} style={styles.calCell} />;
+          const date = new Date(year, m, day);
+          const key = dayKey(date);
+          const selected = key === dayKey(selectedDay);
+          const isToday = key === dayKey(today);
+          const hasEvent = !!eventsByDay[key];
+          return (
+            <TouchableOpacity key={i} style={styles.calCell} onPress={() => onSelect(date)} activeOpacity={0.7}>
+              <View style={[styles.calDay, isToday && !selected && styles.calToday, selected && styles.calSelected]}>
+                <Text style={[styles.calDayText, selected && styles.calSelectedText]}>{day}</Text>
+              </View>
+              <View style={[styles.calDot, hasEvent && { backgroundColor: selected ? colors.primaryDark : colors.primary }]} />
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+    </View>
+  );
+};
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8F9FA',
+    backgroundColor: colors.background,
   },
-  scrollContent: {
-    paddingBottom: 120,
-  },
+
+  // Header
   header: {
-    paddingTop: 20,
-    paddingBottom: 40,
-    paddingHorizontal: 20,
-    borderBottomLeftRadius: 35,
-    borderBottomRightRadius: 35,
-  },
-  headerTop: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 30,
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 20,
   },
   userInfo: {
     flexDirection: 'row',
     alignItems: 'center',
+    flex: 1,
+    marginRight: 12,
   },
   avatarCircle: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: '#FFD700',
+    width: 48,
+    height: 48,
+    borderRadius: 4,
+    overflow: 'hidden',
+    backgroundColor: colors.primaryLight,
+    borderWidth: 2,
+    borderColor: colors.white,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 15,
-    borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.3)',
+    marginRight: 12,
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
   },
   avatarInitial: {
-    fontSize: 20,
-    fontFamily: 'Outfit_700Bold',
-    color: '#2C1206',
+    fontSize: 19,
+    fontFamily: fonts.bold,
+    color: colors.primaryDark,
   },
   welcomeText: {
-    fontSize: 12,
-    fontFamily: 'Outfit_400Regular',
-    color: 'rgba(255,255,255,0.7)',
+    fontSize: 13,
+    fontFamily: fonts.regular,
+    color: colors.textSecondary,
   },
   userName: {
-    fontSize: 18,
-    fontFamily: 'Outfit_700Bold',
-    color: '#FFF',
+    fontSize: 20,
+    fontFamily: fonts.bold,
+    color: colors.text,
   },
   notificationBtn: {
     width: 44,
     height: 44,
-    borderRadius: 14,
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 4,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.border,
     justifyContent: 'center',
     alignItems: 'center',
+    ...shadows.card,
   },
-  dot: {
-    position: 'absolute',
-    top: 12,
-    right: 12,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#FFD700',
-    borderWidth: 2,
-    borderColor: '#2C1206',
-  },
+
+  // Statistics
   statsRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    gap: 10,
+    paddingHorizontal: 20,
   },
   statBox: {
-    alignItems: 'center',
-    width: width * 0.28,
+    flex: 1,
+    backgroundColor: colors.white,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    ...shadows.card,
   },
   statIconWrap: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
+    width: 30,
+    height: 30,
+    borderRadius: 9,
+    backgroundColor: alpha(COLORS.primaryLight, 0.35),
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 8,
   },
   statValue: {
-    fontSize: 18,
-    fontFamily: 'Outfit_700Bold',
-    color: '#FFF',
+    fontSize: 20,
+    fontFamily: fonts.bold,
+    color: colors.text,
   },
   statLabel: {
-    fontSize: 10,
-    fontFamily: 'Outfit_400Regular',
-    color: 'rgba(255,255,255,0.6)',
+    fontSize: 12,
+    fontFamily: fonts.regular,
+    color: colors.textSecondary,
   },
-  searchSection: {
-    paddingHorizontal: 20,
-    marginTop: -25,
-    marginBottom: 25,
-  },
+
+  // Search
   searchBar: {
-    backgroundColor: '#FFF',
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 18,
-    height: 54,
-    borderRadius: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 4,
+    gap: 10,
+    marginHorizontal: 20,
+    marginTop: 16,
+    height: 50,
+    paddingHorizontal: 16,
+    backgroundColor: colors.white,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   searchInput: {
     flex: 1,
-    marginLeft: 12,
-    fontFamily: 'Outfit_400Regular',
+    fontFamily: fonts.regular,
     fontSize: 15,
-    color: '#333',
+    color: colors.text,
   },
+
+  loading: {
+    paddingVertical: 48,
+    alignItems: 'center',
+  },
+
+  // Empty state
+  emptyState: {
+    alignItems: 'center',
+    paddingTop: 56,
+    paddingHorizontal: 40,
+  },
+  emptyIcon: {
+    width: 80,
+    height: 80,
+    borderRadius: 4,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.border,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 18,
+  },
+  emptyTitle: {
+    fontSize: 17,
+    fontFamily: fonts.semibold,
+    color: colors.text,
+    textAlign: 'center',
+  },
+  emptyText: {
+    fontSize: 14,
+    fontFamily: fonts.regular,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    marginTop: 6,
+  },
+
+  // Section header + List/Calendar switch
   sectionHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: 20,
-    marginBottom: 15,
+    marginTop: 24,
+    marginBottom: 14,
   },
   sectionTitle: {
     fontSize: 18,
-    fontFamily: 'Outfit_700Bold',
-    color: '#2C1206',
+    fontFamily: fonts.bold,
+    color: colors.text,
   },
-  seeAll: {
-    fontSize: 13,
-    fontFamily: 'Outfit_600SemiBold',
-    color: '#7B3F00',
-  },
-  activeCardContainer: {
-    marginHorizontal: 20,
-    marginBottom: 25,
-  },
-  activeCard: {
-    borderRadius: 24,
-    padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.06,
-    shadowRadius: 15,
-    elevation: 3,
+  segment: {
+    flexDirection: 'row',
+    backgroundColor: colors.white,
+    borderRadius: radii.pill,
     borderWidth: 1,
-    borderColor: '#F0F0F0',
+    borderColor: colors.border,
+    padding: 3,
   },
-  cardTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 15,
-  },
-  typeBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-    gap: 6,
-  },
-  typeBadgeText: {
-    fontSize: 11,
-    fontFamily: 'Outfit_700Bold',
-    color: '#7B3F00',
-  },
-  liveBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFF',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#FEE',
-  },
-  liveDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#FF4B4B',
-    marginRight: 6,
-  },
-  liveText: {
-    fontSize: 10,
-    fontFamily: 'Outfit_700Bold',
-    color: '#FF4B4B',
-  },
-  eventTitle: {
-    fontSize: 20,
-    fontFamily: 'Outfit_700Bold',
-    color: '#2C1206',
-    marginBottom: 6,
-  },
-  infoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginBottom: 18,
-  },
-  infoText: {
-    fontSize: 13,
-    fontFamily: 'Outfit_400Regular',
-    color: '#666',
-  },
-  progressContainer: {
-    marginBottom: 20,
-  },
-  progressHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  progressLabel: {
-    fontSize: 12,
-    fontFamily: 'Outfit_600SemiBold',
-    color: '#444',
-  },
-  progressValue: {
-    fontSize: 12,
-    fontFamily: 'Outfit_700Bold',
-    color: '#7B3F00',
-  },
-  progressBarBg: {
-    height: 8,
-    backgroundColor: '#F0F0F0',
-    borderRadius: 4,
-    overflow: 'hidden',
-  },
-  progressBarFill: {
-    height: '100%',
-    borderRadius: 4,
-  },
-  cardFooter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderTopWidth: 1,
-    borderTopColor: '#F5F5F5',
-    paddingTop: 15,
-  },
-  footerItem: {
+  segmentBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-  },
-  footerText: {
-    fontSize: 12,
-    fontFamily: 'Outfit_600SemiBold',
-    color: '#888',
-  },
-  trackBtn: {
-    backgroundColor: '#2C1206',
-    paddingHorizontal: 15,
+    paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 10,
+    borderRadius: radii.pill,
   },
-  trackText: {
-    color: '#FFF',
-    fontSize: 11,
-    fontFamily: 'Outfit_700Bold',
+  segmentBtnOn: {
+    backgroundColor: colors.primary,
   },
-  upcomingScroll: {
-    paddingLeft: 20,
-    paddingRight: 10,
-  },
-  upcomingCard: {
-    width: 220,
-    height: 90,
-    backgroundColor: '#FFF',
-    borderRadius: 20,
-    marginRight: 15,
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-    elevation: 2,
-  },
-  dateBox: {
-    width: 55,
-    height: 65,
-    backgroundColor: '#FDFBF7',
-    borderRadius: 15,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#F0E6D2',
-  },
-  dateDay: {
-    fontSize: 18,
-    fontFamily: 'Outfit_700Bold',
-    color: '#2C1206',
-  },
-  dateMonth: {
-    fontSize: 10,
-    fontFamily: 'Outfit_700Bold',
-    color: '#B08040',
-    textTransform: 'uppercase',
-  },
-  upcomingContent: {
-    flex: 1,
-    marginLeft: 12,
-  },
-  upcomingTitle: {
-    fontSize: 14,
-    fontFamily: 'Outfit_700Bold',
-    color: '#333',
-    marginBottom: 2,
-  },
-  upcomingLoc: {
-    fontSize: 11,
-    fontFamily: 'Outfit_400Regular',
-    color: '#999',
-    marginBottom: 5,
-  },
-  upcomingMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  upcomingTime: {
-    fontSize: 10,
-    fontFamily: 'Outfit_600SemiBold',
-    color: '#888',
-  },
-  addSmallCard: {
-    width: 100,
-    height: 90,
-    marginRight: 20,
-  },
-  addSmallInner: {
-    flex: 1,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 4,
-  },
-  addSmallText: {
-    fontSize: 11,
-    fontFamily: 'Outfit_700Bold',
-    color: '#7B3F00',
-  },
-  promoBanner: {
-    marginHorizontal: 20,
-    marginTop: 30,
-    borderRadius: 22,
-    overflow: 'hidden',
-  },
-  promoInner: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 22,
-  },
-  promoTitle: {
-    fontSize: 16,
-    fontFamily: 'Outfit_700Bold',
-    color: '#2C1206',
-    marginBottom: 4,
-  },
-  promoSub: {
+  segmentText: {
     fontSize: 12,
-    fontFamily: 'Outfit_400Regular',
-    color: 'rgba(44, 18, 6, 0.6)',
+    fontFamily: fonts.semibold,
+    color: colors.textSecondary,
   },
-  emptyState: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 60,
-    paddingHorizontal: 40,
+  segmentTextOn: {
+    color: colors.white,
   },
-  emptyText: {
-    fontSize: 15,
-    fontFamily: 'Outfit_400Regular',
-    color: '#999',
-    marginTop: 15,
-    marginBottom: 25,
-    textAlign: 'center',
+
+  // Event card
+  eventCard: {
+    marginHorizontal: 20,
+    marginBottom: 12,
+    backgroundColor: colors.white,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: 16,
+    ...shadows.card,
   },
-  emptyBtn: {
-    backgroundColor: '#7B3F00',
-    paddingHorizontal: 25,
-    paddingVertical: 12,
-    borderRadius: 12,
-  },
-  emptyBtnText: {
-    color: '#FFF',
-    fontSize: 14,
-    fontFamily: 'Outfit_700Bold',
-  },
-  fab: {
-    position: 'absolute',
-    bottom: 100,
-    right: 20,
-    height: 54,
-    borderRadius: 27,
-    shadowColor: '#2C1206',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.35,
-    shadowRadius: 12,
-    elevation: 10,
-  },
-  fabGradient: {
-    flex: 1,
-    borderRadius: 27,
+  eventTop: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 22,
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  eventName: {
+    flex: 1,
+    fontSize: 16,
+    fontFamily: fonts.semibold,
+    color: colors.text,
+  },
+  statusPill: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: radii.pill,
+  },
+  statusText: {
+    fontSize: 11,
+    fontFamily: fonts.semibold,
+  },
+  eventRows: {
+    marginTop: 10,
+    gap: 6,
+  },
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 8,
   },
-  fabText: {
-    color: '#FFF',
+  metaText: {
+    flex: 1,
+    fontSize: 13,
+    fontFamily: fonts.regular,
+    color: colors.textSecondary,
+  },
+  eventMeta: {
+    marginTop: 6,
+    fontSize: 13,
+    fontFamily: fonts.regular,
+    color: colors.textSecondary,
+  },
+  noResults: {
+    marginHorizontal: 20,
+    marginTop: 4,
+    fontSize: 14,
+    fontFamily: fonts.regular,
+    color: colors.textSecondary,
+    textAlign: 'center',
+  },
+
+  // Calendar
+  calendar: {
+    marginHorizontal: 20,
+    backgroundColor: colors.white,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: 14,
+    ...shadows.card,
+  },
+  calHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  calNav: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.surfaceSecondary,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  calTitle: {
+    fontSize: 16,
+    fontFamily: fonts.semibold,
+    color: colors.text,
+  },
+  calRow: {
+    flexDirection: 'row',
+  },
+  calWeekday: {
+    width: '14.2857%',
+    textAlign: 'center',
+    fontSize: 12,
+    fontFamily: fonts.semibold,
+    color: colors.textMuted,
+    paddingVertical: 6,
+  },
+  calGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
+  calCell: {
+    width: '14.2857%',
+    alignItems: 'center',
+    paddingVertical: 3,
+  },
+  calDay: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: 'transparent',
+  },
+  calToday: {
+    borderColor: colors.primary,
+  },
+  calSelected: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  calDayText: {
+    fontSize: 14,
+    fontFamily: fonts.regular,
+    color: colors.text,
+  },
+  calSelectedText: {
+    fontFamily: fonts.semibold,
+    color: colors.white,
+  },
+  calDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 3,
+    marginTop: 2,
+    backgroundColor: 'transparent',
+  },
+  dayTitle: {
+    marginHorizontal: 20,
+    marginTop: 18,
+    marginBottom: 12,
     fontSize: 15,
-    fontFamily: 'Outfit_700Bold',
-    letterSpacing: 0.5,
+    fontFamily: fonts.semibold,
+    color: colors.text,
+  },
+
+  // Floating Add Event (the only add action)
+  fab: {
+    position: 'absolute',
+    right: 20,
+    height: FAB_HEIGHT,
+    borderRadius: 4,
+    backgroundColor: colors.primary,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    gap: 6,
+    ...shadows.button,
+    elevation: 6,
+  },
+  fabText: {
+    color: colors.white,
+    fontSize: 15,
+    fontFamily: fonts.semibold,
   },
 });
 

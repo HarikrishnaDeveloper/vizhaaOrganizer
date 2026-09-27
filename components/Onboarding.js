@@ -15,13 +15,15 @@ import { Image } from 'expo-image';
 import Svg, { Circle, Defs, RadialGradient, Stop } from 'react-native-svg';
 import OnboardingSlide from './OnboardingSlide';
 import { preloadOnboardingImages } from './onboardingAssets';
+import { colors } from '../theme';
+import PrimaryButton from './ui/PrimaryButton';
 
 const COLORS = {
-  background: '#FFFFFF',
-  charcoal: '#1C1C1E',
-  textMuted: '#8A8A8E',
-  textStrong: '#3A3A3C',
-  underline: '#C7C7CC',
+  background: colors.background,
+  charcoal: colors.primary,
+  textMuted: colors.textMuted,
+  textStrong: colors.textHeading,
+  underline: colors.disabled,
 };
 
 // Height reserved for the slide title, shared by the layout and every pager page.
@@ -113,14 +115,14 @@ const CircularHalo = () => (
     <Svg width="100%" height="100%" viewBox="0 0 100 100">
       <Defs>
         <RadialGradient id="haloGlow" cx="50%" cy="50%" r="50%">
-          <Stop offset="0%" stopColor="#F4F2EF" stopOpacity="1" />
-          <Stop offset="70%" stopColor="#F7F6F4" stopOpacity="0.6" />
-          <Stop offset="100%" stopColor="#FFFFFF" stopOpacity="0" />
+          <Stop offset="0%" stopColor={colors.white} stopOpacity="1" />
+          <Stop offset="70%" stopColor={colors.white} stopOpacity="0.6" />
+          <Stop offset="100%" stopColor={colors.white} stopOpacity="0" />
         </RadialGradient>
       </Defs>
       <Circle cx="50" cy="50" r="50" fill="url(#haloGlow)" />
-      <Circle cx="50" cy="50" r="40" fill="#F1EFEC" fillOpacity="0.45" />
-      <Circle cx="50" cy="50" r="30" fill="#EEEBE7" fillOpacity="0.45" />
+      <Circle cx="50" cy="50" r="40" fill={colors.white} fillOpacity="0.5" />
+      <Circle cx="50" cy="50" r="30" fill={colors.primaryLight} fillOpacity="0.14" />
     </Svg>
   </View>
 );
@@ -298,9 +300,9 @@ const Onboarding = ({ onComplete, onReady }) => {
         </Text>
 
         {/* CTA Button */}
-        <TouchableOpacity style={styles.button} activeOpacity={0.85} onPress={onComplete}>
+        <PrimaryButton style={styles.button} activeOpacity={0.85} onPress={onComplete}>
           <Text style={styles.buttonText}>Plan Your Dream Day</Text>
-        </TouchableOpacity>
+        </PrimaryButton>
       </View>
     </View>
   );
@@ -405,14 +407,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 24,
-    shadowColor: '#000',
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.14,
     shadowRadius: 16,
     elevation: 4,
   },
   buttonText: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontSize: 16,
     fontFamily: 'Outfit_600SemiBold',
     letterSpacing: 0.2,

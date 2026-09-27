@@ -23,6 +23,7 @@ import EventTracking from './components/EventTracking';
 
 import PaymentTab from './components/PaymentTab';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { colors } from './theme';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -58,7 +59,7 @@ const AppContent = () => {
   }, [loading, waitingForOnboarding]);
 
   // While checking stored token, show blank screen (SplashScreen is still visible)
-  if (loading) return <View style={{ flex: 1, backgroundColor: '#FFF' }} />;
+  if (loading) return <View style={{ flex: 1, backgroundColor: colors.background }} />;
 
 
 
@@ -66,8 +67,8 @@ const AppContent = () => {
   if (user) {
     if (currentScreen === 'add-event') {
       return (
-        <AddEvent 
-          onBack={() => setCurrentScreen('dashboard')} 
+        <AddEvent
+          onBack={() => setCurrentScreen('dashboard')}
           initialData={tempEventData}
           onProceed={(data) => {
             setTempEventData(data);
@@ -78,9 +79,9 @@ const AppContent = () => {
     }
     if (currentScreen === 'payment') {
       return (
-        <PaymentReview 
+        <PaymentReview
           eventData={tempEventData}
-          onBack={() => setCurrentScreen('add-event')} 
+          onBack={() => setCurrentScreen('add-event')}
           onPay={(amount) => {
             setTempAmountPaid(amount);
             setCurrentScreen('success');
@@ -90,7 +91,7 @@ const AppContent = () => {
     }
     if (currentScreen === 'success') {
       return (
-        <SuccessScreen 
+        <SuccessScreen
           amount={tempAmountPaid}
           onDone={() => {
             setTempEventData(null);
@@ -105,8 +106,8 @@ const AppContent = () => {
     }
     if (currentScreen === 'status') {
       return (
-        <StatusScreen 
-          onNavigate={(screen) => setCurrentScreen(screen)} 
+        <StatusScreen
+          onNavigate={(screen) => setCurrentScreen(screen)}
           onEventPress={(event) => {
             setTempEventData(event);
             setCurrentScreen('event-tracking');
@@ -116,8 +117,8 @@ const AppContent = () => {
     }
     if (currentScreen === 'history') {
       return (
-        <HistoryScreen 
-          onNavigate={(screen) => setCurrentScreen(screen)} 
+        <HistoryScreen
+          onNavigate={(screen) => setCurrentScreen(screen)}
           onEventPress={(event) => {
             setTempEventData(event);
             setCurrentScreen('history-details');
@@ -130,7 +131,7 @@ const AppContent = () => {
     }
     if (currentScreen === 'history-details') {
       return (
-        <HistoryDetails 
+        <HistoryDetails
           event={tempEventData}
           onBack={() => setCurrentScreen('history')}
         />
@@ -138,15 +139,15 @@ const AppContent = () => {
     }
     if (currentScreen === 'event-tracking') {
       return (
-        <EventTracking 
+        <EventTracking
           event={tempEventData}
           onBack={() => setCurrentScreen('status')}
         />
       );
     }
     return (
-      <Dashboard 
-        onAddEvent={() => setCurrentScreen('add-event')} 
+      <Dashboard
+        onAddEvent={() => setCurrentScreen('add-event')}
         onNavigate={(screen) => setCurrentScreen(screen)}
         onEventPress={(event) => {
           setTempEventData(event);
@@ -186,5 +187,5 @@ export default function App() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FFF' },
+  container: { flex: 1, backgroundColor: colors.background },
 });

@@ -1,15 +1,17 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import BottomTabBar from './BottomTabBar';
+import BottomTabBar, { TAB_BAR_HEIGHT } from './BottomTabBar';
+import { colors, fonts, radii, shadows } from '../theme';
 import { api } from '../services/api';
 
 const HistoryScreen = ({ onNavigate, onEventPress }) => {
   const [historyEvents, setHistoryEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const insets = useSafeAreaInsets();
+  const bottomSpace = TAB_BAR_HEIGHT + insets.bottom + 24;
 
   const fetchHistory = useCallback(async () => {
     try {
@@ -39,59 +41,57 @@ const HistoryScreen = ({ onNavigate, onEventPress }) => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>History</Text>
+      </View>
+
       {loading ? (
         <View style={styles.centerContainer}>
-          <ActivityIndicator size="large" color="#7B3F00" />
+          <ActivityIndicator size="large" color={colors.primary} />
         </View>
       ) : (
-        <ScrollView 
-          showsVerticalScrollIndicator={false} 
-          contentContainerStyle={historyEvents.length === 0 ? styles.emptyScrollContent : styles.scrollContent}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#7B3F00']} />}
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={[historyEvents.length === 0 ? styles.emptyScrollContent : styles.scrollContent, { paddingBottom: bottomSpace }]}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} tintColor={colors.primary} />}
         >
           {historyEvents.length > 0 ? (
             historyEvents.map(event => (
-              <TouchableOpacity 
-                key={event.id} 
+              <TouchableOpacity
+                key={event.id}
                 style={styles.cardWrapper}
                 onPress={() => onEventPress(event)}
               >
                 <View style={styles.cardContainer}>
-                  <LinearGradient
-                    colors={['#FFF9C4', '#FFF']}
-                    style={styles.card}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                  >
+                  <View style={styles.card}>
                     <View style={styles.cardContent}>
                       <Text style={styles.eventTitle} numberOfLines={1}>{event.name}</Text>
                       <View style={styles.locationRow}>
-                        <Ionicons name="location" size={14} color="#333" />
+                        <Ionicons name="location-outline" size={14} color={colors.iconSecondary} />
                         <Text style={styles.locationText} numberOfLines={2}>{event.location}</Text>
                       </View>
                       <Text style={styles.dateTimeText}>{event.inDate || event.date} | {event.inTime || event.time}</Text>
                     </View>
-                    
+
                     <View style={styles.imageContainer}>
-                      <MaterialCommunityIcons 
-                        name={event.type === 'wedding' ? 'home-heart' : event.type === 'corporate' ? 'office-building' : 'party-popper'} 
-                        size={60} 
-                        color="#FFB800" 
+                      <MaterialCommunityIcons
+                        name={event.type === 'wedding' ? 'home-heart' : event.type === 'corporate' ? 'office-building' : 'party-popper'}
+                        size={40}
+                        color={colors.icon}
                       />
-                      <View style={styles.cloudShadow} />
                     </View>
-                  </LinearGradient>
+                  </View>
                 </View>
                 {/* Dropdown Arrow Tab */}
                 <View style={styles.dropdownTab}>
-                  <Ionicons name="chevron-down" size={18} color="#2C1206" />
+                  <Ionicons name="chevron-down" size={18} color={colors.icon} />
                 </View>
               </TouchableOpacity>
             ))
           ) : (
             <View style={styles.emptyState}>
-              <MaterialCommunityIcons name="history" size={60} color="#DDD" />
+              <MaterialCommunityIcons name="history" size={60} color={colors.iconMuted} />
               <Text style={styles.emptyText}>No completed events found.</Text>
             </View>
           )}
@@ -106,7 +106,17 @@ const HistoryScreen = ({ onNavigate, onEventPress }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.background,
+  },
+  header: {
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 12,
+  },
+  headerTitle: {
+    fontSize: 28,
+    fontFamily: fonts.bold,
+    color: colors.text,
   },
   centerContainer: {
     flex: 1,
@@ -114,86 +124,82 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   scrollContent: {
-    paddingTop: 20,
-    paddingBottom: 115,
+    paddingTop: 8,
     paddingHorizontal: 20,
   },
   emptyScrollContent: {
     flexGrow: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingBottom: 115,
   },
   cardWrapper: {
-    marginBottom: 30,
+    marginBottom: 24,
     alignItems: 'flex-end',
   },
   cardContainer: {
     width: '100%',
-    borderRadius: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 15,
-    elevation: 5,
-    backgroundColor: '#FFF',
+    borderRadius: radii.xl,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    ...shadows.card,
   },
   card: {
     flexDirection: 'row',
-    borderRadius: 20,
-    padding: 15,
-    height: 150,
+    alignItems: 'center',
+    borderRadius: radii.xl,
+    padding: 18,
+    minHeight: 130,
   },
   cardContent: {
     flex: 1,
     justifyContent: 'center',
+    paddingRight: 12,
   },
   eventTitle: {
     fontSize: 18,
-    fontFamily: 'Outfit_700Bold',
-    color: '#1A1A1A',
+    fontFamily: fonts.bold,
+    color: colors.text,
     marginBottom: 8,
   },
   locationRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    marginBottom: 20,
+    marginBottom: 16,
   },
   locationText: {
     fontSize: 12,
-    fontFamily: 'Outfit_400Regular',
-    color: '#666',
+    fontFamily: fonts.regular,
+    color: colors.textSecondary,
     marginLeft: 5,
     lineHeight: 16,
     flex: 1,
   },
   dateTimeText: {
-    fontSize: 11,
-    fontFamily: 'Outfit_700Bold',
-    color: '#333',
+    fontSize: 12,
+    fontFamily: fonts.semibold,
+    color: colors.textHeading,
   },
   imageContainer: {
-    width: 100,
+    width: 76,
+    height: 76,
+    borderRadius: 38,
+    backgroundColor: colors.surfaceSecondary,
+    borderWidth: 1,
+    borderColor: colors.border,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  cloudShadow: {
-    width: 70,
-    height: 20,
-    backgroundColor: 'rgba(0,0,0,0.05)',
-    borderRadius: 35,
-    marginTop: -5,
-  },
   dropdownTab: {
     width: 40,
-    height: 25,
-    backgroundColor: '#E8E8E8',
+    height: 24,
+    backgroundColor: colors.surfaceTertiary,
     borderBottomLeftRadius: 12,
     borderBottomRightRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: -1,
-    marginRight: 10,
+    marginRight: 16,
   },
   emptyState: {
     alignItems: 'center',
@@ -201,8 +207,8 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 15,
-    fontFamily: 'Outfit_400Regular',
-    color: '#999',
+    fontFamily: fonts.regular,
+    color: colors.textSecondary,
     marginTop: 15,
   },
 });

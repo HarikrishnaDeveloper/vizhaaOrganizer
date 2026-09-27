@@ -1,17 +1,16 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, RefreshControl, ActivityIndicator } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, ActivityIndicator } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { api } from '../services/api';
-import BottomTabBar from './BottomTabBar';
-
-const { width } = Dimensions.get('window');
+import BottomTabBar, { TAB_BAR_HEIGHT } from './BottomTabBar';
+import { colors, fonts, radii, shadows } from '../theme';
 
 const StatusScreen = ({ onNavigate, onEventPress }) => {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const insets = useSafeAreaInsets();
 
   const fetchEvents = useCallback(async () => {
     try {
@@ -37,67 +36,67 @@ const StatusScreen = ({ onNavigate, onEventPress }) => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>All Events</Text>
         <TouchableOpacity style={styles.filterBtn}>
-          <Ionicons name="filter" size={20} color="#7B3F00" />
+          <Ionicons name="options-outline" size={20} color={colors.icon} />
         </TouchableOpacity>
       </View>
 
-      <ScrollView 
-        showsVerticalScrollIndicator={false} 
-        contentContainerStyle={styles.scrollContent}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#7B3F00']} />}
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: TAB_BAR_HEIGHT + insets.bottom + 24 }]}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} tintColor={colors.primary} />}
       >
         {loading ? (
           <View style={{ padding: 40, alignItems: 'center' }}>
-            <ActivityIndicator size="large" color="#7B3F00" />
+            <ActivityIndicator size="large" color={colors.primary} />
           </View>
         ) : (
           <>
             {events.length === 0 ? (
               <View style={styles.emptyState}>
-                <MaterialCommunityIcons name="calendar-blank-outline" size={60} color="#DDD" />
+                <MaterialCommunityIcons name="calendar-blank-outline" size={60} color={colors.iconMuted} />
                 <Text style={styles.emptyText}>No events found yet.</Text>
               </View>
             ) : (
               events.map(event => (
-                <TouchableOpacity 
-                  key={event.id} 
+                <TouchableOpacity
+                  key={event.id}
                   style={styles.cardContainer}
                   onPress={() => onEventPress(event)}
                   activeOpacity={0.9}
                 >
                   <View style={styles.card}>
                     <View style={styles.cardHeader}>
-                      <View style={[styles.typeBadge, { backgroundColor: event.status === 'In Progress' ? '#FFD70022' : '#F5F5F5' }]}>
-                        <MaterialCommunityIcons 
-                          name={event.type === 'wedding' ? 'ring' : event.type === 'corporate' ? 'briefcase' : 'party-popper'} 
-                          size={14} 
-                          color={event.status === 'In Progress' ? '#7B3F00' : '#888'} 
+                      <View style={styles.typeBadge}>
+                        <MaterialCommunityIcons
+                          name={event.type === 'wedding' ? 'ring' : event.type === 'corporate' ? 'briefcase' : 'party-popper'}
+                          size={14}
+                          color={colors.icon}
                         />
-                        <Text style={[styles.typeText, { color: event.status === 'In Progress' ? '#7B3F00' : '#888' }]}>
+                        <Text style={styles.typeText}>
                           {event.type}
                         </Text>
                       </View>
-                      <View style={[styles.statusTag, { backgroundColor: event.status === 'In Progress' ? '#4CAF5015' : '#7B3F0010' }]}>
-                        <Text style={[styles.statusText, { color: event.status === 'In Progress' ? '#4CAF50' : '#7B3F00' }]}>
+                      <View style={[styles.statusTag, event.status === 'In Progress' && styles.statusTagActive]}>
+                        <Text style={[styles.statusText, event.status === 'In Progress' && styles.statusTextActive]}>
                           {event.status}
                         </Text>
                       </View>
                     </View>
 
                     <Text style={styles.eventTitle}>{event.name}</Text>
-                    
+
                     <View style={styles.detailRow}>
-                      <Ionicons name="location-outline" size={14} color="#B08040" />
+                      <Ionicons name="location-outline" size={14} color={colors.iconSecondary} />
                       <Text style={styles.detailText} numberOfLines={1}>{event.location}</Text>
                     </View>
 
                     <View style={styles.detailRow}>
-                      <Ionicons name="calendar-outline" size={14} color="#B08040" />
+                      <Ionicons name="calendar-outline" size={14} color={colors.iconSecondary} />
                       <Text style={styles.detailText}>{event.date}  •  {event.inTime}</Text>
                     </View>
 
@@ -115,10 +114,10 @@ const StatusScreen = ({ onNavigate, onEventPress }) => {
 
                     <View style={styles.cardFooter}>
                       <View style={styles.supplierInfo}>
-                        <Ionicons name="people-outline" size={16} color="#999" />
+                        <Ionicons name="people-outline" size={16} color={colors.iconSecondary} />
                         <Text style={styles.supplierText}>{event.suppliers} Suppliers assigned</Text>
                       </View>
-                      <Ionicons name="chevron-forward" size={18} color="#CCC" />
+                      <Ionicons name="chevron-forward" size={18} color={colors.iconMuted} />
                     </View>
                   </View>
                 </TouchableOpacity>
@@ -136,47 +135,43 @@ const StatusScreen = ({ onNavigate, onEventPress }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8F9FA',
+    backgroundColor: colors.background,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingVertical: 15,
-    backgroundColor: '#FFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#F0F0F0',
+    paddingTop: 16,
+    paddingBottom: 12,
+    backgroundColor: colors.background,
   },
   headerTitle: {
-    fontSize: 20,
-    fontFamily: 'Outfit_700Bold',
-    color: '#2C1206',
+    fontSize: 28,
+    fontFamily: fonts.bold,
+    color: colors.text,
   },
   filterBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: '#FFF9E6',
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: colors.surfaceSecondary,
+    borderWidth: 1,
+    borderColor: colors.border,
     justifyContent: 'center',
     alignItems: 'center',
   },
   scrollContent: {
-    paddingTop: 15,
-    paddingBottom: 115,
+    paddingTop: 8,
     paddingHorizontal: 20,
   },
   cardContainer: {
-    marginBottom: 20,
-    backgroundColor: '#FFF',
-    borderRadius: 22,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-    elevation: 3,
+    marginBottom: 14,
+    backgroundColor: colors.surface,
+    borderRadius: radii.xl,
     borderWidth: 1,
-    borderColor: '#F5F5F5',
+    borderColor: colors.border,
+    ...shadows.card,
   },
   card: {
     padding: 18,
@@ -192,27 +187,40 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 10,
     paddingVertical: 5,
-    borderRadius: 12,
+    borderRadius: radii.pill,
+    backgroundColor: colors.surfaceTertiary,
     gap: 5,
   },
   typeText: {
     fontSize: 11,
-    fontFamily: 'Outfit_700Bold',
+    fontFamily: fonts.semibold,
+    color: colors.text,
     textTransform: 'capitalize',
   },
   statusTag: {
     paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: 8,
+    borderRadius: radii.pill,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  statusTagActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   statusText: {
     fontSize: 10,
-    fontFamily: 'Outfit_700Bold',
+    fontFamily: fonts.semibold,
+    color: colors.textSecondary,
+  },
+  statusTextActive: {
+    color: colors.white,
   },
   eventTitle: {
     fontSize: 17,
-    fontFamily: 'Outfit_700Bold',
-    color: '#2C1206',
+    fontFamily: fonts.bold,
+    color: colors.text,
     marginBottom: 10,
   },
   detailRow: {
@@ -223,13 +231,13 @@ const styles = StyleSheet.create({
   },
   detailText: {
     fontSize: 13,
-    fontFamily: 'Outfit_400Regular',
-    color: '#666',
+    fontFamily: fonts.regular,
+    color: colors.textSecondary,
     flex: 1,
   },
   progressSection: {
-    marginTop: 15,
-    marginBottom: 5,
+    marginTop: 14,
+    marginBottom: 4,
   },
   progressInfo: {
     flexDirection: 'row',
@@ -238,33 +246,33 @@ const styles = StyleSheet.create({
   },
   progressLabel: {
     fontSize: 12,
-    fontFamily: 'Outfit_600SemiBold',
-    color: '#444',
+    fontFamily: fonts.semibold,
+    color: colors.textBody,
   },
   progressVal: {
     fontSize: 12,
-    fontFamily: 'Outfit_700Bold',
-    color: '#4CAF50',
+    fontFamily: fonts.bold,
+    color: colors.text,
   },
   progressBg: {
     height: 6,
-    backgroundColor: '#F0F0F0',
+    backgroundColor: colors.divider,
     borderRadius: 3,
     overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
-    backgroundColor: '#4CAF50',
+    backgroundColor: colors.primary,
     borderRadius: 3,
   },
   cardFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 15,
-    paddingTop: 15,
+    marginTop: 14,
+    paddingTop: 14,
     borderTopWidth: 1,
-    borderTopColor: '#F8F9FA',
+    borderTopColor: colors.divider,
   },
   supplierInfo: {
     flexDirection: 'row',
@@ -273,8 +281,8 @@ const styles = StyleSheet.create({
   },
   supplierText: {
     fontSize: 12,
-    fontFamily: 'Outfit_600SemiBold',
-    color: '#999',
+    fontFamily: fonts.semibold,
+    color: colors.textSecondary,
   },
   emptyState: {
     alignItems: 'center',
@@ -283,8 +291,8 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 15,
-    fontFamily: 'Outfit_400Regular',
-    color: '#999',
+    fontFamily: fonts.regular,
+    color: colors.textSecondary,
     marginTop: 15,
   },
 });

@@ -1,8 +1,11 @@
 import React, { useState } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, StyleSheet,
+  View, Text, TouchableOpacity, StyleSheet,
 } from 'react-native';
 import BlobBackground from './BlobBackground';
+import TextInput from './ui/ThemedTextInput';
+import { colors, fonts, shadows } from '../theme';
+import PrimaryButton from './ui/PrimaryButton';
 
 const PhoneEntry = ({ onNext }) => {
   const [phone, setPhone] = useState('');
@@ -57,9 +60,9 @@ const PhoneEntry = ({ onNext }) => {
 
         <View style={{ height: 28 }} />
 
-        <TouchableOpacity style={styles.btn} onPress={handleNext} activeOpacity={0.85}>
+        <PrimaryButton style={styles.btn} onPress={handleNext} activeOpacity={0.85}>
           <Text style={styles.btnText}>Proceed to verify</Text>
-        </TouchableOpacity>
+        </PrimaryButton>
       </View>
     </View>
   );
@@ -68,16 +71,16 @@ const PhoneEntry = ({ onNext }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.background,
     justifyContent: 'center',
     paddingHorizontal: 20,
   },
 
   card: {
-    backgroundColor: '#EBEBEB',
+    backgroundColor: colors.surfaceMuted,
     borderRadius: 4,
     padding: 28,
-    shadowColor: '#000',
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.1,
     shadowRadius: 24,
@@ -86,39 +89,39 @@ const styles = StyleSheet.create({
 
   title: {
     fontSize: 22,
-    fontFamily: 'Outfit_700Bold',
-    color: '#111',
+    fontFamily: fonts.bold,
+    color: colors.text,
     marginBottom: 4,
   },
   subtitle: {
     fontSize: 12,
-    fontFamily: 'Outfit_400Regular',
-    color: '#888',
+    fontFamily: fonts.regular,
+    color: colors.textSecondary,
     marginBottom: 24,
   },
 
   inputRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFF',
+    backgroundColor: colors.surface,
     borderRadius: 4,
     borderWidth: 1,
-    borderColor: '#E0E0E0',
+    borderColor: colors.border,
     height: 52,
     paddingHorizontal: 14,
     marginBottom: 18,
   },
   prefix: {
     fontSize: 15,
-    fontFamily: 'Outfit_600SemiBold',
-    color: '#222',
+    fontFamily: fonts.semibold,
+    color: colors.text,
     marginRight: 8,
   },
   input: {
     flex: 1,
     fontSize: 15,
-    fontFamily: 'Outfit_400Regular',
-    color: '#222',
+    fontFamily: fonts.regular,
+    color: colors.text,
   },
 
   checkRow: {
@@ -131,50 +134,46 @@ const styles = StyleSheet.create({
     height: 18,
     borderRadius: 4,
     borderWidth: 1.5,
-    borderColor: '#AAA',
+    borderColor: colors.textMuted,
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: 1,
   },
   checkboxOn: {
-    backgroundColor: '#2196F3',
-    borderColor: '#2196F3',
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   tick: {
-    color: '#FFF',
+    color: colors.white,
     fontSize: 11,
-    fontFamily: 'Outfit_700Bold',
+    fontFamily: fonts.bold,
   },
   checkText: {
     flex: 1,
     fontSize: 11,
-    fontFamily: 'Outfit_400Regular',
-    color: '#555',
+    fontFamily: fonts.regular,
+    color: colors.textBody,
     lineHeight: 17,
   },
   link: {
-    fontFamily: 'Outfit_600SemiBold',
-    color: '#333',
+    fontFamily: fonts.semibold,
+    color: colors.text,
   },
 
   // Matches the onboarding "Plan Your Dream Day" CTA
   btn: {
-    backgroundColor: '#1C1C1E',
+    backgroundColor: colors.primary,
     borderRadius: 4,
     height: 56,
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.14,
-    shadowRadius: 16,
-    elevation: 4,
+    ...shadows.button,
   },
   btnText: {
-    color: '#FFFFFF',
+    color: colors.onPrimary,
     fontSize: 16,
-    fontFamily: 'Outfit_600SemiBold',
+    fontFamily: fonts.semibold,
     letterSpacing: 0.2,
   },
 });

@@ -1,14 +1,14 @@
 import React, { useState, useRef } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView,
-  Dimensions, SafeAreaView, ActivityIndicator, Alert, Animated
+  ActivityIndicator, Alert, Animated
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import BlobBackground from './BlobBackground';
-
-const { width } = Dimensions.get('window');
+import { COLORS, colors, fonts, radii, buttons, alpha } from '../theme';
+import PrimaryButton from './ui/PrimaryButton';
 
 const BUSINESS_TYPES = [
   { id: 'catering', label: 'Catering Service', icon: 'restaurant-outline' },
@@ -70,10 +70,10 @@ const BusinessTypeSelection = ({ onDone }) => {
                 >
                   <BlurView intensity={isSelected ? 40 : 20} tint="light" style={styles.card}>
                     <View style={[styles.iconWrap, isSelected && styles.iconWrapSelected]}>
-                      <Ionicons 
-                        name={type.icon} 
-                        size={28} 
-                        color={isSelected ? '#FFF' : '#FFB300'} 
+                      <Ionicons
+                        name={type.icon}
+                        size={28}
+                        color={isSelected ? colors.white : colors.icon}
                       />
                     </View>
                     <Text style={[styles.cardLabel, isSelected && styles.cardLabelSelected]}>
@@ -81,7 +81,7 @@ const BusinessTypeSelection = ({ onDone }) => {
                     </Text>
                     {isSelected && (
                       <View style={styles.checkWrap}>
-                        <Ionicons name="checkmark-circle" size={24} color="#FFB300" />
+                        <Ionicons name="checkmark-circle" size={24} color={colors.icon} />
                       </View>
                     )}
                   </BlurView>
@@ -91,22 +91,17 @@ const BusinessTypeSelection = ({ onDone }) => {
           })}
         </View>
 
-        <TouchableOpacity 
-          style={[styles.btn, !selected && styles.btnDisabled]} 
+        <PrimaryButton
+          style={[styles.btn, !selected && styles.btnDisabled]}
           onPress={handleFinish}
           disabled={loading || !selected}
         >
-          <LinearGradient
-            colors={selected ? ['#1A1A1A', '#000'] : ['#CCC', '#BBB']}
-            style={styles.btnGradient}
-          >
-            {loading ? (
-              <ActivityIndicator color="#FFF" />
-            ) : (
-              <Text style={styles.btnText}>Complete Setup</Text>
-            )}
-          </LinearGradient>
-        </TouchableOpacity>
+          {loading ? (
+            <ActivityIndicator color={colors.white} />
+          ) : (
+            <Text style={[styles.btnText, !selected && styles.btnTextDisabled]}>Complete Setup</Text>
+          )}
+        </PrimaryButton>
       </ScrollView>
     </SafeAreaView>
   );
@@ -114,7 +109,7 @@ const BusinessTypeSelection = ({ onDone }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFF',
+    backgroundColor: colors.background,
   },
   scrollContent: {
     padding: 24,
@@ -126,33 +121,27 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 30,
-    fontFamily: 'Outfit_700Bold',
-    color: '#111',
+    fontFamily: fonts.bold,
+    color: colors.text,
     lineHeight: 38,
     marginBottom: 10,
-    letterSpacing: 0.5,
   },
   subtitle: {
     fontSize: 16,
-    fontFamily: 'Outfit_400Regular',
-    color: '#555',
+    fontFamily: fonts.regular,
+    color: colors.textBody,
     lineHeight: 24,
   },
   grid: {
-    gap: 16,
+    gap: 14,
     marginBottom: 40,
   },
   cardContainer: {
-    borderRadius: 20,
+    borderRadius: radii.xl,
     overflow: 'hidden',
-    backgroundColor: 'rgba(255, 255, 255, 0.5)',
-    borderWidth: 1.5,
-    borderColor: 'transparent',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 4,
+    backgroundColor: alpha(COLORS.white, 0.7),
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   card: {
     flexDirection: 'row',
@@ -160,33 +149,32 @@ const styles = StyleSheet.create({
     padding: 18,
   },
   cardSelected: {
-    borderColor: '#FFB300',
-    backgroundColor: 'rgba(255, 179, 0, 0.05)',
-    shadowColor: '#FFB300',
-    shadowOpacity: 0.2,
-    elevation: 8,
+    borderColor: colors.borderStrong,
+    borderWidth: 1.5,
+    backgroundColor: colors.surface,
   },
   iconWrap: {
-    width: 56,
-    height: 56,
-    borderRadius: 16,
-    backgroundColor: 'rgba(255, 179, 0, 0.1)',
+    width: 54,
+    height: 54,
+    borderRadius: radii.lg,
+    backgroundColor: colors.surfaceTertiary,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 18,
+    marginRight: 16,
   },
   iconWrapSelected: {
-    backgroundColor: '#FFB300',
+    backgroundColor: colors.primary,
   },
   cardLabel: {
     fontSize: 16,
-    fontFamily: 'Outfit_600SemiBold',
-    color: '#333',
+    fontFamily: fonts.regular,
+    color: colors.textBody,
     flex: 1,
-    letterSpacing: 0.2,
+    paddingRight: 28,
   },
   cardLabelSelected: {
-    color: '#111',
+    fontFamily: fonts.semibold,
+    color: colors.text,
   },
   checkWrap: {
     position: 'absolute',
@@ -194,27 +182,19 @@ const styles = StyleSheet.create({
     top: 18,
   },
   btn: {
-    height: 58,
-    borderRadius: 16,
-    overflow: 'hidden',
+    ...buttons.primary,
     marginTop: 'auto',
     marginBottom: 10,
   },
   btnDisabled: {
-    opacity: 0.5,
-  },
-  btnGradient: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    ...buttons.disabled,
   },
   btnText: {
-    color: '#FFF',
-    fontSize: 17,
-    fontFamily: 'Outfit_600SemiBold',
-    letterSpacing: 0.5,
+    ...buttons.primaryText,
+  },
+  btnTextDisabled: {
+    ...buttons.disabledText,
   },
 });
-
 
 export default BusinessTypeSelection;

@@ -1,11 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, TextInput,
-  TouchableOpacity, Modal, Dimensions, FlatList,
+  View, Text, StyleSheet, ScrollView,
+  TouchableOpacity, Modal, Dimensions, FlatList, Platform, Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons, MaterialCommunityIcons, FontAwesome5 } from '@expo/vector-icons';
+import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
+import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
+import TextInput from './ui/ThemedTextInput';
+import LocationPicker, { MONOCHROME_MAP_STYLE, cityStateLine } from './LocationPicker';
+import { colors, fonts, radii, shadows, buttons, input } from '../theme';
+import PrimaryButton from './ui/PrimaryButton';
 
 const { width } = Dimensions.get('window');
 
@@ -17,11 +21,11 @@ const EVENT_TYPES = [
 ];
 
 const DRESS_CODES = [
-  { id: 'white_shirt',  label: 'White Shirt',  icon: 'tshirt', color: '#FFFFFF' },
-  { id: 'black_shirt',  label: 'Black Shirt',  icon: 'tshirt', color: '#222222' },
-  { id: 'white_tshirt', label: 'White T-Shirt', icon: 'tshirt', color: '#FFFDE7' },
-  { id: 'black_tshirt', label: 'Black T-Shirt', icon: 'tshirt', color: '#424242' },
-  { id: 'other',        label: 'Other',         icon: 'ellipsis-h', color: '#9E9E9E' },
+  { id: 'white_shirt',  label: 'White Shirt',  icon: 'tshirt' },
+  { id: 'black_shirt',  label: 'Black Shirt',  icon: 'tshirt' },
+  { id: 'white_tshirt', label: 'White T-Shirt', icon: 'tshirt' },
+  { id: 'black_tshirt', label: 'Black T-Shirt', icon: 'tshirt' },
+  { id: 'other',        label: 'Other',         icon: 'ellipsis-h' },
 ];
 
 const SERVICES = [
@@ -67,11 +71,11 @@ function CalendarPicker({ visible, onClose, onSelect, selectedDate }) {
         <TouchableOpacity activeOpacity={1} style={cal.box}>
           <View style={cal.header}>
             <TouchableOpacity onPress={prevMonth} style={cal.navBtn}>
-              <Ionicons name="chevron-back" size={20} color="#2C1206" />
+              <Ionicons name="chevron-back" size={20} color={colors.icon} />
             </TouchableOpacity>
             <Text style={cal.monthText}>{MONTH_NAMES[month]} {year}</Text>
             <TouchableOpacity onPress={nextMonth} style={cal.navBtn}>
-              <Ionicons name="chevron-forward" size={20} color="#2C1206" />
+              <Ionicons name="chevron-forward" size={20} color={colors.icon} />
             </TouchableOpacity>
           </View>
           <View style={cal.dayRow}>
@@ -104,21 +108,23 @@ function CalendarPicker({ visible, onClose, onSelect, selectedDate }) {
 }
 
 const cal = StyleSheet.create({
-  overlay:   { flex:1, backgroundColor:'rgba(0,0,0,0.45)', justifyContent:'center', alignItems:'center' },
-  box:       { backgroundColor:'#FFF', borderRadius:20, padding:20, width: width - 50, shadowColor:'#000', shadowOpacity:0.2, shadowRadius:15, elevation:10 },
+  overlay:   { flex:1, backgroundColor: colors.overlay, justifyContent:'center', alignItems:'center' },
+  box:       { backgroundColor: colors.surface, borderRadius: radii.xl, padding:20, width: Math.min(width - 40, 420), ...shadows.raised },
   header:    { flexDirection:'row', alignItems:'center', justifyContent:'space-between', marginBottom:14 },
-  navBtn:    { padding:6, backgroundColor:'#F5F5F5', borderRadius:8 },
-  monthText: { fontSize:16, fontFamily:'Outfit_700Bold', color:'#2C1206' },
+  navBtn:    { padding:6, backgroundColor: colors.surfaceSecondary, borderWidth: 1, borderColor: colors.border, borderRadius: radii.sm },
+  monthText: { fontSize:16, fontFamily: fonts.bold, color: colors.text },
   dayRow:    { flexDirection:'row', marginBottom:6 },
-  dayName:   { flex:1, textAlign:'center', fontSize:12, fontFamily:'Outfit_600SemiBold', color:'#999' },
+  dayName:   { flex:1, textAlign:'center', fontSize:12, fontFamily: fonts.semibold, color: colors.textMuted },
   grid:      { flexDirection:'row', flexWrap:'wrap' },
   cell:      { width:'14.28%', aspectRatio:1, justifyContent:'center', alignItems:'center', marginVertical:2, borderRadius:20 },
   activeCell:{ },
-  selectedCell: { backgroundColor: '#7B3F00' },
-  cellText:  { fontSize:13, fontFamily:'Outfit_400Regular', color:'#2C1206' },
-  selectedCellText: { color: '#FFF', fontFamily: 'Outfit_700Bold' },
-  closeBtn:  { marginTop:14, alignItems:'center', paddingVertical:10, backgroundColor:'#F5F5F5', borderRadius:10 },
-  closeBtnText: { fontSize:14, fontFamily:'Outfit_700Bold', color:'#7B3F00' },
+  selectedCell: { backgroundColor: colors.primary },
+  cellText:  { fontSize:13, fontFamily: fonts.regular, color: colors.text },
+  selectedCellText: { color: colors.white, fontFamily: fonts.bold },
+  closeBtn:  { marginTop:14, alignItems:'center', paddingVertical:12, backgroundColor: colors.surfaceSecondary, borderRadius: radii.md },
+  closeBtnText: { fontSize:14, fontFamily: fonts.semibold, color: colors.text },
+  confirmBtn: { backgroundColor: colors.primary, marginTop: 16 },
+  confirmBtnText: { color: colors.white },
 });
 
 // ─── Time Picker ──────────────────────────────────────────────────────────────
@@ -166,9 +172,9 @@ function TimePicker({ visible, onClose, onSelect, initialTime }) {
             <View style={tp.colWrap}><Text style={tp.colLabel}>Min</Text><Col data={MINUTES} selected={mm} onPick={setMm}/></View>
             <View style={tp.colWrap}><Text style={tp.colLabel}>  </Text><Col data={PERIODS} selected={pp} onPick={setPp}/></View>
           </View>
-          <TouchableOpacity style={[cal.closeBtn, { backgroundColor:'#7B3F00', marginTop:16 }]}
+          <TouchableOpacity style={[cal.closeBtn, cal.confirmBtn]}
             onPress={() => { onSelect(`${hh}:${mm} ${pp}`); onClose(); }}>
-            <Text style={[cal.closeBtnText, { color:'#FFF' }]}>Confirm</Text>
+            <Text style={[cal.closeBtnText, cal.confirmBtnText]}>Confirm</Text>
           </TouchableOpacity>
           <TouchableOpacity style={[cal.closeBtn, { marginTop:6 }]} onPress={onClose}>
             <Text style={cal.closeBtnText}>Cancel</Text>
@@ -182,12 +188,12 @@ function TimePicker({ visible, onClose, onSelect, initialTime }) {
 const tp = StyleSheet.create({
   row:          { flexDirection:'row', alignItems:'center', justifyContent:'center' },
   colWrap:      { alignItems:'center', marginHorizontal:8 },
-  colLabel:     { fontSize:12, fontFamily:'Outfit_600SemiBold', color:'#999', marginBottom:4 },
-  colItem:      { paddingVertical:8, paddingHorizontal:14, borderRadius:8, marginVertical:2 },
-  colItemActive:{ backgroundColor:'#2C1206' },
-  colText:      { fontSize:15, fontFamily:'Outfit_400Regular', color:'#2C1206' },
-  colTextActive:{ color:'#FFD700', fontFamily:'Outfit_700Bold' },
-  sep:          { fontSize:22, fontFamily:'Outfit_700Bold', color:'#2C1206', marginBottom:4, alignSelf:'center' },
+  colLabel:     { fontSize:12, fontFamily: fonts.semibold, color: colors.textMuted, marginBottom:4 },
+  colItem:      { paddingVertical:8, paddingHorizontal:14, borderRadius: radii.sm, marginVertical:2 },
+  colItemActive:{ backgroundColor: colors.primary },
+  colText:      { fontSize:15, fontFamily: fonts.regular, color: colors.text },
+  colTextActive:{ color: colors.white, fontFamily: fonts.bold },
+  sep:          { fontSize:22, fontFamily: fonts.bold, color: colors.text, marginBottom:4, alignSelf:'center' },
 });
 
 const FocusedInput = ({ placeholder, ...props }) => {
@@ -202,9 +208,19 @@ const FocusedInput = ({ placeholder, ...props }) => {
   );
 };
 
+// Address fields start empty and can be typed by hand; coordinates are only
+// set once a spot is confirmed on the map
+const EMPTY_PLACE = {
+  placeId: null, locationName: '', formattedAddress: '', city: '', state: '', pincode: '',
+  latitude: null, longitude: null,
+};
+
 const AddEvent = ({ onBack, onProceed, initialData }) => {
   const [eventName,      setEventName]      = useState(initialData?.eventName || '');
-  const [location,       setLocation]       = useState(initialData?.location || '');
+  // Venue picked on the map: { placeId, locationName, formattedAddress, city, state, pincode, latitude, longitude }
+  const [place,          setPlace]          = useState({ ...EMPTY_PLACE, ...initialData?.place });
+  const [pickerMode,     setPickerMode]     = useState(null); // 'current' | 'search' | null
+  const [editingPlace,   setEditingPlace]   = useState(false);
   const [inDate,         setInDate]         = useState(initialData?.inDate || '');
   const [outDate,        setOutDate]        = useState(initialData?.outDate || '');
   const [inTime,         setInTime]         = useState(initialData?.inTime || '');
@@ -227,28 +243,54 @@ const AddEvent = ({ onBack, onProceed, initialData }) => {
 
   const totalCost = (parseFloat(costPerHead) || 0) * (parseInt(suppliers) || 0);
 
+  const updatePlace = (key) => (val) => setPlace(p => ({ ...p, [key]: val }));
+
+  // The event is created only after payment, so everything it needs must be
+  // present before the user is sent to pay
+  const handleProceed = () => {
+    const missing = [
+      !eventName.trim() && 'Event name',
+      (place.latitude == null || place.longitude == null) && 'Event location',
+      !inDate && 'In date',
+      !inTime && 'In time',
+      !outTime && 'Out time',
+      !(parseInt(suppliers, 10) > 0) && 'Number of suppliers',
+      !(parseFloat(costPerHead) > 0) && 'Cost per head',
+    ].filter(Boolean);
+    if (missing.length) {
+      Alert.alert('Details required', `Please add: ${missing.join(', ')}`);
+      return;
+    }
+    onProceed({
+      eventName, location, inDate, inTime, outDate, outTime,
+      suppliers, eventType, otherEventType, dressCode, otherDress,
+      selectedSvcs, costPerHead, place,
+    });
+  };
+  const hasPin = place.latitude != null && place.longitude != null;
+  // Short human-readable label kept in `location` for lists and older screens
+  const location = [place.locationName, place.city].filter(Boolean).join(', ');
+
   return (
     <SafeAreaView style={s.container}>
       {/* ── Header ── */}
       <View style={s.headerRow}>
         <TouchableOpacity style={s.backBtn} onPress={onBack}>
-          <Ionicons name="chevron-back" size={22} color="#2C1206" />
+          <Ionicons name="chevron-back" size={22} color={colors.icon} />
         </TouchableOpacity>
         <View style={s.headerCenter}>
-          <MaterialCommunityIcons name="party-popper" size={22} color="#FFD700" />
-          <Text style={s.headerTitle}>EVENT DETAILS</Text>
-          <MaterialCommunityIcons name="star-face" size={22} color="#FFD700" />
+          <Text style={s.headerTitle}>Event Details</Text>
         </View>
-        <View style={{ width: 38 }} />
+        <View style={{ width: 40 }} />
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.scroll}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.scroll} keyboardShouldPersistTaps="handled">
         <View style={s.form}>
 
           {/* Event Name */}
           <Field label="Event Name">
             <FocusedInput style={s.input} placeholder="e.g. Vijay's Wedding Event"
-              placeholderTextColor="#BBB" value={eventName} onChangeText={setEventName} />
+              value={eventName} onChangeText={setEventName} />
           </Field>
 
           {/* Event Type */}
@@ -259,41 +301,134 @@ const AddEvent = ({ onBack, onProceed, initialData }) => {
                   style={[s.typeCard, eventType === t.id && s.activeCard]}
                   onPress={() => setEventType(t.id)}>
                   <View style={[s.iconBox, eventType === t.id && s.iconBoxActive]}>
-                    <FontAwesome5 name={t.icon} size={22} color={eventType === t.id ? '#FFD700' : '#888'} />
+                    <FontAwesome5 name={t.icon} size={20} color={eventType === t.id ? colors.white : colors.iconSecondary} />
                   </View>
-                  <Text style={s.typeLabel}>{t.label}</Text>
+                  <Text style={[s.typeLabel, eventType === t.id && s.typeLabelActive]}>{t.label}</Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>
             {eventType === 'other' && (
               <FocusedInput style={[s.input, { marginTop: 10 }]}
                 placeholder="Describe your event type…"
-                placeholderTextColor="#BBB"
                 value={otherEventType}
                 onChangeText={setOtherEventType} />
             )}
           </Field>
 
           {/* Location */}
-          <Field label="Location">
-            <View style={s.inputIcon}>
-              <Ionicons name="location-outline" size={18} color="#B08040" style={s.inputIconImg} />
-              <FocusedInput style={[s.input, s.inputWithIcon]}
-                placeholder="e.g. Event Venue Address"
-                placeholderTextColor="#BBB" value={location} onChangeText={setLocation} />
+          <Field label="Event Location">
+            {hasPin ? (
+              /* Confirmed venue: map preview */
+              <View style={s.locCard}>
+                <MapView
+                  key={`${place.latitude},${place.longitude}`}
+                  style={s.locMap}
+                  provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
+                  customMapStyle={MONOCHROME_MAP_STYLE}
+                  liteMode
+                  pointerEvents="none"
+                  scrollEnabled={false}
+                  zoomEnabled={false}
+                  rotateEnabled={false}
+                  pitchEnabled={false}
+                  toolbarEnabled={false}
+                  initialRegion={{
+                    latitude: place.latitude,
+                    longitude: place.longitude,
+                    latitudeDelta: 0.006,
+                    longitudeDelta: 0.006,
+                  }}
+                >
+                  <Marker coordinate={{ latitude: place.latitude, longitude: place.longitude }} pinColor="black" />
+                </MapView>
+                <View style={s.locCardBody}>
+                  <View style={s.locPinIcon}>
+                    <Ionicons name="location-outline" size={18} color={colors.white} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.locName} numberOfLines={1}>{place.locationName || 'Pinned location'}</Text>
+                    <Text style={s.locSub} numberOfLines={1}>{cityStateLine(place) || place.formattedAddress}</Text>
+                  </View>
+                  <TouchableOpacity style={s.locChangeBtn} onPress={() => setPickerMode('search')}>
+                    <Text style={s.locChangeText}>Change</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ) : (
+              /* Nothing chosen yet: search first, GPS as the shortcut */
+              <View style={s.locSelectCard}>
+                <View style={s.locSelectHeader}>
+                  <Ionicons name="location-outline" size={18} color={colors.icon} />
+                  <Text style={s.locSelectTitle}>Select event location</Text>
+                </View>
+                <TouchableOpacity style={s.locSearchRow} onPress={() => setPickerMode('search')} activeOpacity={0.8}>
+                  <Ionicons name="search" size={18} color={colors.iconSecondary} />
+                  <Text style={s.locSearchText}>Search for a place</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={s.locCurrentRow} onPress={() => setPickerMode('current')} activeOpacity={0.8}>
+                  <Ionicons name="navigate" size={16} color={colors.icon} />
+                  <Text style={s.locCurrentText}>Use my current location</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {/* Details come from the map; editing is only for small corrections */}
+            <View style={s.locDetails}>
+              <View style={s.locDetailsHeader}>
+                <Text style={s.locDetailsTitle}>Location details</Text>
+                {hasPin && (
+                  <TouchableOpacity onPress={() => setEditingPlace(v => !v)}>
+                    <Text style={s.locEditText}>{editingPlace ? 'Done' : 'Edit'}</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+              {editingPlace ? (
+                <>
+                  <Text style={s.subLabel}>Venue name</Text>
+                  <FocusedInput style={s.input} placeholder="e.g. Codissia Trade Fair Complex"
+                    value={place.locationName} onChangeText={updatePlace('locationName')} />
+                  <Text style={s.subLabel}>Address</Text>
+                  <FocusedInput style={[s.input, s.inputMulti]} placeholder="Street, area"
+                    multiline textAlignVertical="top"
+                    value={place.formattedAddress} onChangeText={updatePlace('formattedAddress')} />
+                  <View style={s.row}>
+                    <View style={{ flex: 1, marginRight: 6 }}>
+                      <Text style={s.subLabel}>City</Text>
+                      <FocusedInput style={s.input} placeholder="City"
+                        value={place.city} onChangeText={updatePlace('city')} />
+                    </View>
+                    <View style={{ flex: 1, marginLeft: 6 }}>
+                      <Text style={s.subLabel}>State</Text>
+                      <FocusedInput style={s.input} placeholder="State"
+                        value={place.state} onChangeText={updatePlace('state')} />
+                    </View>
+                  </View>
+                  <Text style={s.subLabel}>Pincode</Text>
+                  <FocusedInput style={s.input} placeholder="6-digit pincode" keyboardType="number-pad" maxLength={6}
+                    value={place.pincode} onChangeText={v => updatePlace('pincode')(v.replace(/\D/g, ''))} />
+                </>
+              ) : (
+                <>
+                  <DetailRow label="Venue" value={place.locationName} />
+                  <DetailRow label="Address" value={place.formattedAddress} />
+                  <DetailRow label="City" value={place.city} />
+                  <DetailRow label="State" value={place.state} />
+                  <DetailRow label="Pincode" value={place.pincode} last />
+                </>
+              )}
             </View>
           </Field>
 
           {/* In Date & Time Section */}
           <View style={s.dateTimeBlock}>
-            <LinearGradient colors={['#F5EFE6', '#E8DFD3']} style={s.blockHeader}>
+            <View style={s.blockHeader}>
               <Text style={s.blockTitle}>IN DATE & TIME</Text>
-            </LinearGradient>
+            </View>
             <View style={s.blockBody}>
               <View style={s.row}>
                 <View style={{ flex: 1, marginRight: 6 }}>
                   <TouchableOpacity style={s.pickerBtn} onPress={() => setShowInCal(true)}>
-                    <Ionicons name="calendar-outline" size={16} color="#B08040" />
+                    <Ionicons name="calendar-outline" size={16} color={colors.icon} />
                     <Text style={[s.pickerText, !inDate && s.placeholder]} numberOfLines={1}>
                       {inDate || 'In Date'}
                     </Text>
@@ -301,7 +436,7 @@ const AddEvent = ({ onBack, onProceed, initialData }) => {
                 </View>
                 <View style={{ flex: 1, marginLeft: 6 }}>
                   <TouchableOpacity style={s.pickerBtn} onPress={() => setShowInTime(true)}>
-                    <Ionicons name="time-outline" size={16} color="#B08040" />
+                    <Ionicons name="time-outline" size={16} color={colors.icon} />
                     <Text style={[s.pickerText, !inTime && s.placeholder]} numberOfLines={1}>
                       {inTime || 'In Time'}
                     </Text>
@@ -313,14 +448,14 @@ const AddEvent = ({ onBack, onProceed, initialData }) => {
 
           {/* Out Date & Time Section */}
           <View style={s.dateTimeBlock}>
-            <LinearGradient colors={['#F5EFE6', '#E8DFD3']} style={s.blockHeader}>
+            <View style={s.blockHeader}>
               <Text style={s.blockTitle}>OUT DATE & TIME</Text>
-            </LinearGradient>
+            </View>
             <View style={s.blockBody}>
               <View style={s.row}>
                 <View style={{ flex: 1, marginRight: 6 }}>
                   <TouchableOpacity style={s.pickerBtn} onPress={() => setShowOutCal(true)}>
-                    <Ionicons name="calendar-outline" size={16} color="#B08040" />
+                    <Ionicons name="calendar-outline" size={16} color={colors.icon} />
                     <Text style={[s.pickerText, !outDate && s.placeholder]} numberOfLines={1}>
                       {outDate || 'Out Date'}
                     </Text>
@@ -328,7 +463,7 @@ const AddEvent = ({ onBack, onProceed, initialData }) => {
                 </View>
                 <View style={{ flex: 1, marginLeft: 6 }}>
                   <TouchableOpacity style={s.pickerBtn} onPress={() => setShowOutTime(true)}>
-                    <Ionicons name="time-outline" size={16} color="#B08040" />
+                    <Ionicons name="time-outline" size={16} color={colors.icon} />
                     <Text style={[s.pickerText, !outTime && s.placeholder]} numberOfLines={1}>
                       {outTime || 'Out Time'}
                     </Text>
@@ -341,7 +476,7 @@ const AddEvent = ({ onBack, onProceed, initialData }) => {
           {/* Suppliers */}
           <Field label="Number of Suppliers">
             <FocusedInput style={s.input} placeholder="e.g. 50" keyboardType="numeric"
-              placeholderTextColor="#BBB" value={suppliers} onChangeText={setSuppliers} />
+              value={suppliers} onChangeText={setSuppliers} />
           </Field>
 
           {/* Dress Code */}
@@ -352,16 +487,15 @@ const AddEvent = ({ onBack, onProceed, initialData }) => {
                   style={[s.typeCard, dressCode === dc.id && s.activeCard]}
                   onPress={() => setDressCode(dc.id)}>
                   <View style={[s.iconBox, dressCode === dc.id && s.iconBoxActive]}>
-                    <FontAwesome5 name={dc.icon} size={22} color={dressCode === dc.id ? '#FFD700' : '#888'} />
+                    <FontAwesome5 name={dc.icon} size={20} color={dressCode === dc.id ? colors.white : colors.iconSecondary} />
                   </View>
-                  <Text style={s.typeLabel}>{dc.label}</Text>
+                  <Text style={[s.typeLabel, dressCode === dc.id && s.typeLabelActive]}>{dc.label}</Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>
             {dressCode === 'other' && (
               <FocusedInput style={[s.input, { marginTop: 10 }]}
                 placeholder="Describe your dress code…"
-                placeholderTextColor="#BBB"
                 value={otherDress}
                 onChangeText={setOtherDress} />
             )}
@@ -375,10 +509,10 @@ const AddEvent = ({ onBack, onProceed, initialData }) => {
                   style={[s.typeCard, selectedSvcs.includes(sv.id) && s.activeCard]}
                   onPress={() => toggleSvc(sv.id)}>
                   <View style={[s.iconBox, selectedSvcs.includes(sv.id) && s.iconBoxActive]}>
-                    <FontAwesome5 name={sv.icon} size={22}
-                      color={selectedSvcs.includes(sv.id) ? '#FFD700' : '#888'} />
+                    <FontAwesome5 name={sv.icon} size={20}
+                      color={selectedSvcs.includes(sv.id) ? colors.white : colors.iconSecondary} />
                   </View>
-                  <Text style={s.typeLabel}>{sv.label}</Text>
+                  <Text style={[s.typeLabel, selectedSvcs.includes(sv.id) && s.typeLabelActive]}>{sv.label}</Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>
@@ -387,10 +521,9 @@ const AddEvent = ({ onBack, onProceed, initialData }) => {
           {/* Cost per head */}
           <Field label="Estimated Cost per Head (₹)">
             <View style={s.inputIcon}>
-              <Text style={[s.inputIconImg, { fontSize: 16, color: '#B08040', fontFamily:'Outfit_700Bold' }]}>₹</Text>
+              <Text style={[s.inputIconImg, { fontSize: 16, color: colors.icon, fontFamily: fonts.bold }]}>₹</Text>
               <FocusedInput style={[s.input, s.inputWithIcon]}
                 placeholder="Amount per supplier"
-                placeholderTextColor="#BBB"
                 keyboardType="numeric"
                 value={costPerHead}
                 onChangeText={setCostPerHead} />
@@ -399,9 +532,9 @@ const AddEvent = ({ onBack, onProceed, initialData }) => {
 
           {/* Cost Summary Card */}
           <View style={s.costCard}>
-            <LinearGradient colors={['#2C1206', '#5C2A0E']} style={s.costHeader}>
+            <View style={s.costHeader}>
               <Text style={s.costHeaderText}>Cost Summary</Text>
-            </LinearGradient>
+            </View>
             <View style={s.costBody}>
               <CostRow label="Services selected"  value={`${selectedSvcs.length}`} unit="" />
               <CostRow label="Suppliers"           value={suppliers || '0'} unit="" />
@@ -421,18 +554,13 @@ const AddEvent = ({ onBack, onProceed, initialData }) => {
               <Field label="Coupon Code" noMargin>
                 <FocusedInput style={s.couponInput}
                   placeholder="Enter Vizhaa voucher code"
-                  placeholderTextColor="#BBB" />
+                  />
               </Field>
 
-              <TouchableOpacity style={s.payBtn}
-                onPress={() => onProceed({ 
-                  eventName, location, inDate, inTime, outDate, outTime,
-                  suppliers, eventType, otherEventType, dressCode, otherDress,
-                  selectedSvcs, costPerHead 
-                })}>
+              <PrimaryButton style={s.payBtn} onPress={handleProceed}>
                 <Text style={s.payBtnText}>Proceed to Payment</Text>
-                <Ionicons name="arrow-forward" size={18} color="#FFF" style={{ marginLeft: 8 }} />
-              </TouchableOpacity>
+                <Ionicons name="arrow-forward" size={18} color={colors.white} style={{ marginLeft: 8 }} />
+              </PrimaryButton>
             </View>
           </View>
 
@@ -440,31 +568,39 @@ const AddEvent = ({ onBack, onProceed, initialData }) => {
       </ScrollView>
 
       {/* Modals */}
-      <CalendarPicker 
-        visible={showInCal} 
+      <CalendarPicker
+        visible={showInCal}
         onClose={() => setShowInCal(false)}
         selectedDate={inDate}
-        onSelect={d => { setInDate(d); setShowInCal(false); }} 
+        onSelect={d => { setInDate(d); setShowInCal(false); }}
       />
-      <CalendarPicker 
-        visible={showOutCal} 
+      <CalendarPicker
+        visible={showOutCal}
         onClose={() => setShowOutCal(false)}
         selectedDate={outDate}
-        onSelect={d => { setOutDate(d); setShowOutCal(false); }} 
+        onSelect={d => { setOutDate(d); setShowOutCal(false); }}
       />
-      
-      <TimePicker 
-        visible={showInTime}  
+
+      <TimePicker
+        visible={showInTime}
         onClose={() => setShowInTime(false)}
         initialTime={inTime}
-        onSelect={t => setInTime(t)} 
+        onSelect={t => setInTime(t)}
       />
-      
-      <TimePicker 
-        visible={showOutTime} 
+
+      <TimePicker
+        visible={showOutTime}
         onClose={() => setShowOutTime(false)}
         initialTime={outTime}
-        onSelect={t => setOutTime(t)} 
+        onSelect={t => setOutTime(t)}
+      />
+
+      <LocationPicker
+        visible={pickerMode !== null}
+        startWith={pickerMode || 'search'}
+        initial={hasPin ? place : null}
+        onClose={() => setPickerMode(null)}
+        onConfirm={(picked) => { setPlace({ ...EMPTY_PLACE, ...picked }); setEditingPlace(false); setPickerMode(null); }}
       />
     </SafeAreaView>
   );
@@ -477,57 +613,66 @@ const Field = ({ label, children, noMargin }) => (
   </View>
 );
 
+const DetailRow = ({ label, value, last }) => (
+  <View style={[s.detailRow, last && { borderBottomWidth: 0 }]}>
+    <Text style={s.detailLabel}>{label}</Text>
+    <Text style={[s.detailValue, !value && s.detailEmpty]} numberOfLines={2}>{value || '—'}</Text>
+  </View>
+);
+
 const CostRow = ({ label, value, unit, bold }) => (
   <View style={s.costRow}>
-    <Text style={[s.costLbl, bold && { fontFamily:'Outfit_700Bold', fontSize: 15 }]}>{label}</Text>
-    <Text style={[s.costVal, bold && { fontFamily:'Outfit_700Bold', fontSize: 18, color:'#2C1206' }]}>
+    <Text style={[s.costLbl, bold && { fontFamily: fonts.bold, fontSize: 15, color: colors.text }]}>{label}</Text>
+    <Text style={[s.costVal, bold && { fontFamily: fonts.bold, fontSize: 18, color: colors.text }]}>
       {value}{unit}
     </Text>
   </View>
 );
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F4F4F4' },
+  container: { flex: 1, backgroundColor: colors.background },
 
   /* Header */
   headerRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 16, paddingVertical: 14,
-    backgroundColor: '#FFF',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.07, shadowRadius: 6, elevation: 4,
+    paddingHorizontal: 16, paddingVertical: 12,
+    backgroundColor: colors.background,
+    borderBottomWidth: 1, borderBottomColor: colors.divider,
   },
   backBtn: {
-    width: 38, height: 38, borderRadius: 12,
-    backgroundColor: '#F5EFE6', justifyContent: 'center', alignItems: 'center',
+    width: 40, height: 40, borderRadius: radii.md,
+    backgroundColor: colors.surfaceSecondary, borderWidth: 1, borderColor: colors.border,
+    justifyContent: 'center', alignItems: 'center',
   },
-  headerCenter: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  headerCenter: { flexDirection: 'row', alignItems: 'center' },
   headerTitle: {
-    fontSize: 18, fontFamily: 'Outfit_700Bold', color: '#2C1206', marginHorizontal: 6,
+    fontSize: 18, fontFamily: fonts.bold, color: colors.text,
   },
 
   /* Scroll */
-  scroll: { paddingBottom: 50, paddingTop: 8 },
-  form:   { paddingHorizontal: 18 },
+  scroll: { paddingBottom: 40, paddingTop: 20 },
+  form:   { paddingHorizontal: 20 },
 
   /* Date Time Block */
   dateTimeBlock: {
-    backgroundColor: '#FFF',
-    borderRadius: 16,
+    backgroundColor: colors.surface,
+    borderRadius: radii.lg,
     overflow: 'hidden',
-    marginBottom: 20,
+    marginBottom: 22,
     borderWidth: 1,
-    borderColor: '#F0EAD6',
-    elevation: 2,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 4,
+    borderColor: colors.border,
   },
   blockHeader: {
-    paddingVertical: 8,
-    paddingHorizontal: 15,
+    paddingVertical: 9,
+    paddingHorizontal: 14,
+    backgroundColor: colors.surfaceSecondary,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
   },
   blockTitle: {
     fontSize: 11,
-    fontFamily: 'Outfit_700Bold',
-    color: '#7B3F00',
+    fontFamily: fonts.semibold,
+    color: colors.textSecondary,
     letterSpacing: 1,
   },
   blockBody: {
@@ -536,71 +681,109 @@ const s = StyleSheet.create({
 
   /* Inputs */
   inputGroup: { marginBottom: 22 },
-  label:      { fontSize: 15, fontFamily: 'Outfit_700Bold', color: '#2C1206', marginBottom: 8 },
+  label:      { fontSize: 14, fontFamily: fonts.semibold, color: colors.textHeading, marginBottom: 8 },
   input: {
-    backgroundColor: '#FFF', height: 52, borderRadius: 12, paddingHorizontal: 14,
-    fontSize: 14, fontFamily: 'Outfit_400Regular', color: '#333',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2,
+    ...input,
+    height: 52, paddingHorizontal: 14, fontSize: 14,
   },
 
   inputIcon:     { flexDirection: 'row', alignItems: 'center' },
   inputIconImg:  { position: 'absolute', left: 14, zIndex: 1 },
-  inputWithIcon: { flex: 1, paddingLeft: 38 },
+  inputWithIcon: { flex: 1, paddingLeft: 40 },
 
   pickerBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
-    backgroundColor: '#F9F9F9', height: 48, borderRadius: 10, paddingHorizontal: 10,
-    borderWidth: 1, borderColor: '#F0F0F0',
+    backgroundColor: colors.inputBackground, height: 48, borderRadius: radii.md - 2, paddingHorizontal: 12,
+    borderWidth: 1, borderColor: colors.border,
   },
-  pickerText: { fontSize: 13, fontFamily: 'Outfit_400Regular', color: '#333' },
-  placeholder: { color: '#BBB' },
+  pickerText: { fontSize: 13, fontFamily: fonts.regular, color: colors.text, flexShrink: 1 },
+  placeholder: { color: colors.textMuted },
 
   row: { flexDirection: 'row' },
 
-  /* Type / Dress Cards */
-  typeCard: {
-    width: 84, backgroundColor: '#FFF', borderRadius: 14, padding: 10,
-    marginRight: 10, alignItems: 'center',
-    borderWidth: 1.5, borderColor: 'transparent',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2,
+  /* Location */
+  locSelectCard: {
+    backgroundColor: colors.surfaceSecondary, borderWidth: 1, borderColor: colors.border,
+    borderRadius: radii.lg, padding: 14,
   },
-  activeCard:    { borderColor: '#FFD700' },
-  iconBox:       { width: 54, height: 54, borderRadius: 12, backgroundColor: '#F5F5F5', justifyContent:'center', alignItems:'center', marginBottom: 6 },
-  iconBoxActive: { backgroundColor: '#2C1206' },
-  typeLabel:     { fontSize: 10, fontFamily: 'Outfit_600SemiBold', color: '#2C1206', textAlign:'center' },
+  locSelectHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
+  locSelectTitle: { fontSize: 14, fontFamily: fonts.semibold, color: colors.text },
+  locSearchRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 10, height: 50, paddingHorizontal: 14,
+    backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radii.md,
+  },
+  locSearchText: { fontSize: 14, fontFamily: fonts.regular, color: colors.textMuted },
+  locCurrentRow: { flexDirection: 'row', alignItems: 'center', gap: 8, alignSelf: 'flex-start', marginTop: 12, paddingVertical: 4 },
+  locCurrentText: { fontSize: 13, fontFamily: fonts.semibold, color: colors.text, textDecorationLine: 'underline' },
+
+  locCard: { borderRadius: radii.lg, borderWidth: 1, borderColor: colors.border, overflow: 'hidden', backgroundColor: colors.surface },
+  locMap: { height: 140, width: '100%' },
+  locCardBody: { flexDirection: 'row', alignItems: 'center', padding: 12, gap: 10 },
+  locPinIcon: { width: 34, height: 34, borderRadius: 17, backgroundColor: colors.primary, justifyContent: 'center', alignItems: 'center' },
+  locName: { fontSize: 14, fontFamily: fonts.semibold, color: colors.text },
+  locSub: { fontSize: 12, fontFamily: fonts.regular, color: colors.textSecondary, marginTop: 2 },
+  locChangeBtn: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: radii.pill, borderWidth: 1, borderColor: colors.borderStrong },
+  locChangeText: { fontSize: 12, fontFamily: fonts.semibold, color: colors.text },
+
+  locDetails: {
+    marginTop: 12, borderWidth: 1, borderColor: colors.border, borderRadius: radii.lg,
+    paddingHorizontal: 14, paddingVertical: 12, backgroundColor: colors.surface,
+  },
+  locDetailsHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
+  locDetailsTitle: { fontSize: 12, fontFamily: fonts.semibold, color: colors.textSecondary, letterSpacing: 0.4 },
+  locEditText: { fontSize: 13, fontFamily: fonts.semibold, color: colors.text, textDecorationLine: 'underline' },
+  detailRow: {
+    flexDirection: 'row', justifyContent: 'space-between', gap: 16, paddingVertical: 10,
+    borderBottomWidth: 1, borderBottomColor: colors.divider,
+  },
+  detailLabel: { fontSize: 13, fontFamily: fonts.regular, color: colors.textSecondary },
+  detailValue: { flex: 1, fontSize: 13, fontFamily: fonts.semibold, color: colors.text, textAlign: 'right' },
+  detailEmpty: { color: colors.textDisabled, fontFamily: fonts.regular },
+  subLabel: { fontSize: 12, fontFamily: fonts.semibold, color: colors.textSecondary, marginTop: 12, marginBottom: 6 },
+  inputMulti: { height: 76, paddingTop: 14 },
+
+  /* Type / Dress / Service Cards */
+  typeCard: {
+    width: 86, backgroundColor: colors.surface, borderRadius: radii.md + 2, padding: 10,
+    marginRight: 10, alignItems: 'center',
+    borderWidth: 1, borderColor: colors.border,
+  },
+  activeCard:    { borderColor: colors.borderStrong, borderWidth: 1.5 },
+  iconBox:       { width: 52, height: 52, borderRadius: radii.md, backgroundColor: colors.surfaceSecondary, justifyContent:'center', alignItems:'center', marginBottom: 8 },
+  iconBoxActive: { backgroundColor: colors.primary },
+  typeLabel:     { fontSize: 11, fontFamily: fonts.regular, color: colors.textSecondary, textAlign:'center' },
+  typeLabelActive: { fontFamily: fonts.semibold, color: colors.text },
 
   /* Cost Card */
-  costCard:   { backgroundColor: '#FFF', borderRadius: 20, marginTop: 4, overflow: 'hidden', shadowColor:'#000', shadowOffset:{width:0,height:5}, shadowOpacity:0.1, shadowRadius:15, elevation:5 },
-  costHeader: { paddingVertical: 16, paddingHorizontal: 20 },
-  costHeaderText: { fontSize: 16, fontFamily: 'Outfit_700Bold', color: '#FFF' },
+  costCard:   { backgroundColor: colors.surface, borderRadius: radii.xl, marginTop: 4, overflow: 'hidden', borderWidth: 1, borderColor: colors.border, ...shadows.card },
+  costHeader: { paddingVertical: 16, paddingHorizontal: 20, backgroundColor: colors.darkSurface },
+  costHeaderText: { fontSize: 16, fontFamily: fonts.bold, color: colors.white },
   costBody:   { padding: 20 },
   costRow:    { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
-  costLbl:    { fontSize: 13, fontFamily: 'Outfit_400Regular', color: '#666' },
-  costVal:    { fontSize: 13, fontFamily: 'Outfit_600SemiBold', color: '#444' },
-  divider:    { height: 1, backgroundColor: '#EEE', marginVertical: 12 },
+  costLbl:    { fontSize: 13, fontFamily: fonts.regular, color: colors.textSecondary },
+  costVal:    { fontSize: 13, fontFamily: fonts.semibold, color: colors.text },
+  divider:    { height: 1, backgroundColor: colors.divider, marginVertical: 12 },
 
   advanceBar: {
     flexDirection: 'row', justifyContent: 'space-between',
-    backgroundColor: '#FFF9E6', padding: 14, borderRadius: 10, marginBottom: 6,
+    backgroundColor: colors.surfaceSecondary, borderWidth: 1, borderColor: colors.border,
+    padding: 14, borderRadius: radii.md - 2, marginBottom: 6,
   },
-  advLbl: { fontSize: 13, fontFamily: 'Outfit_700Bold', color: '#2C1206' },
-  advVal: { fontSize: 14, fontFamily: 'Outfit_700Bold', color: '#2C1206' },
-  balText:{ fontSize: 11, fontFamily: 'Outfit_400Regular', color: '#888', textAlign: 'right', marginBottom: 18 },
+  advLbl: { fontSize: 13, fontFamily: fonts.semibold, color: colors.text },
+  advVal: { fontSize: 14, fontFamily: fonts.bold, color: colors.text },
+  balText:{ fontSize: 11, fontFamily: fonts.regular, color: colors.textSecondary, textAlign: 'right', marginBottom: 18 },
 
   couponInput: {
-    height: 48, borderRadius: 10, paddingHorizontal: 14,
-    borderWidth: 1, borderColor: '#EEE',
-    fontSize: 13, fontFamily: 'Outfit_400Regular', color: '#333',
-    backgroundColor: '#FAFAFA',
+    ...input,
+    height: 48, borderRadius: radii.md - 2, paddingHorizontal: 14, fontSize: 13,
   },
 
   payBtn: {
-    flexDirection: 'row', backgroundColor: '#7B3F00',
-    height: 54, borderRadius: 14, justifyContent: 'center', alignItems: 'center',
+    ...buttons.primary,
+    flexDirection: 'row',
     marginTop: 18,
-    shadowColor: '#7B3F00', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.35, shadowRadius: 8, elevation: 6,
   },
-  payBtnText: { color: '#FFF', fontSize: 15, fontFamily: 'Outfit_700Bold' },
+  payBtnText: { ...buttons.primaryText },
 });
 
 export default AddEvent;
