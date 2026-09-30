@@ -83,7 +83,7 @@ const PaymentReview = ({ eventData, onBack, onPay }) => {
       const verifyRes = await api.verifyPayment(mockPayload);
       if (verifyRes.success) {
         Alert.alert('Test Success', 'SIMULATED payment confirmed!', [
-          { text: 'Great!', onPress: () => onPay(mockPayload.eventData.advancePaid) }
+          { text: 'Great!', onPress: () => onPay(mockPayload.eventData.advancePaid, verifyRes.payment) }
         ]);
       } else {
         throw new Error(verifyRes.message || 'Verification failed');
@@ -157,7 +157,7 @@ const PaymentReview = ({ eventData, onBack, onPay }) => {
 
         if (verifyRes.success) {
           Alert.alert('Success', 'Payment verified and event created!', [
-            { text: 'OK', onPress: () => onPay(currentPayAmount) }
+            { text: 'OK', onPress: () => onPay(currentPayAmount, verifyRes.payment) }
           ]);
         } else {
           Alert.alert('Verification Failed', verifyRes.message || 'Payment could not be verified.');

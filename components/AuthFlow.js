@@ -4,15 +4,23 @@ import OTPScreen from './OTPScreen';
 import Verifying from './Verifying';
 import CompleteProfile from './CompleteProfile';
 import BusinessTypeSelection from './BusinessTypeSelection';
+import ScreenTransition from './ScreenTransition';
 import { useAuth } from '../context/AuthContext';
 import { api, tokenStore } from '../services/api';
 
 const AuthFlow = () => {
   const [screen, setScreen] = useState('phone');
+  const [direction, setDirection] = useState('forward');
   const [phone, setPhone] = useState('');
   const [pendingLogin, setPendingLogin] = useState(null);
   const [profileData, setProfileData] = useState(null);
   const { login } = useAuth();
+
+  // direction: 'forward' slides in from the right, 'back' from the left
+  const goTo = (next, dir = 'forward') => {
+    setDirection(dir);
+    setScreen(next);
+  };
 
   // Called when OTP is verified — routes based on whether user exists
   const handleOtpSuccess = async (data) => {
@@ -21,11 +29,11 @@ const AuthFlow = () => {
       tokenStore.setAccess(data.accessToken);
       await tokenStore.saveRefresh(data.refreshToken);
       setPendingLogin(data);
-      setScreen('profile');
+      goTo('profile');
     } else {
       // Existing organizer — show verifying animation then log in
       setPendingLogin(data);
-      setScreen('verifying');
+      goTo('verifying');
     }
   };
 
@@ -40,7 +48,7 @@ const AuthFlow = () => {
   // Called when profile fields are filled (step 1 of new user setup)
   const handleProfileStepDone = (data) => {
     setProfileData(data);
-    setScreen('business_type');
+    goTo('business_type');
   };
 
   // Called when business type is selected (final step of new user setup)
@@ -56,44 +64,41 @@ const AuthFlow = () => {
     }
   };
 
+  let content = null;
   if (screen === 'phone') {
-    return (
+    content = (
       <PhoneEntry
         onNext={(num) => {
           console.log(`[AuthFlow] Switching to OTP screen for: ${num}`);
           setPhone(num);
-          setScreen('otp');
+          goTo('otp');
         }}
       />
     );
-  }
-
-  if (screen === 'otp') {
-    return (
+  } else if (screen === 'otp') {
+    content = (
       <OTPScreen
         phone={phone}
         onSendOtp={() => api.sendOtp(phone)}
         onVerify={(otp) => api.verifyOtp(phone, otp)}
         onResend={() => api.resendOtp(phone)}
         onSuccess={handleOtpSuccess}
-        onChangePhone={() => setScreen('phone')}
+        onChangePhone={() => goTo('phone', 'back')}
       />
     );
+  } else if (screen === 'verifying') {
+    content = <Verifying onDone={handleVerifyingDone} />;
+  } else if (screen === 'profile') {
+    content = <CompleteProfile onDone={handleProfileStepDone} />;
+  } else if (screen === 'business_type') {
+    content = <BusinessTypeSelection onDone={handleBusinessTypeDone} />;
   }
 
-  if (screen === 'verifying') {
-    return <Verifying onDone={handleVerifyingDone} />;
-  }
-
-  if (screen === 'profile') {
-    return <CompleteProfile onDone={handleProfileStepDone} />;
-  }
-
-  if (screen === 'business_type') {
-    return <BusinessTypeSelection onDone={handleBusinessTypeDone} />;
-  }
-
-  return null;
+  return (
+    <ScreenTransition screenKey={screen} direction={direction}>
+      {content}
+    </ScreenTransition>
+  );
 };
 
 export default AuthFlow;

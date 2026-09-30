@@ -20,7 +20,7 @@ import PrimaryButton from './ui/PrimaryButton';
 
 const COLORS = {
   background: colors.background,
-  charcoal: colors.primary,
+  charcoal: colors.text,
   textMuted: colors.textMuted,
   textStrong: colors.textHeading,
   underline: colors.disabled,
@@ -320,13 +320,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   welcome: {
-    marginTop: 40,
+    marginTop: 60,
     marginBottom: 8,
     textAlign: 'center',
-    fontSize: 20,
+    fontSize: 24,
     fontFamily: 'Outfit_600SemiBold',
     color: COLORS.charcoal,
-    letterSpacing: 0.3,
+    letterSpacing: 1,
   },
   welcomeCompact: {
     marginTop: 16,

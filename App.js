@@ -22,6 +22,7 @@ import HistoryDetails from './components/HistoryDetails';
 import EventTracking from './components/EventTracking';
 
 import PaymentTab from './components/PaymentTab';
+import ScreenTransition from './components/ScreenTransition';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { colors } from './theme';
 
@@ -41,8 +42,10 @@ const AppContent = () => {
 
   const [showOnboarding, setShowOnboarding] = useState(true);
   const [currentScreen, setCurrentScreen] = useState('dashboard');
+  const [direction, setDirection] = useState('forward');
   const [tempEventData, setTempEventData] = useState(null);
   const [tempAmountPaid, setTempAmountPaid] = useState(0);
+  const [tempPayment, setTempPayment] = useState(null);
 
   // The splash stays up while the stored token is checked. Onboarding hides it
   // itself once its illustration is decoded (see onReady below); every other
@@ -58,6 +61,14 @@ const AppContent = () => {
     return () => clearTimeout(timeout);
   }, [loading, waitingForOnboarding]);
 
+  // direction: 'forward' slides in from the right, 'back' from the left, 'fade' only fades
+  const navigate = (screen, dir = 'forward') => {
+    setDirection(dir);
+    setCurrentScreen(screen);
+  };
+  // Bottom-tab switches fade instead of sliding
+  const navigateTab = (screen) => navigate(screen, 'fade');
+
   // While checking stored token, show blank screen (SplashScreen is still visible)
   if (loading) return <View style={{ flex: 1, backgroundColor: colors.background }} />;
 
@@ -65,95 +76,98 @@ const AppContent = () => {
 
   // Token was valid — go straight to Dashboard
   if (user) {
+    let screen;
     if (currentScreen === 'add-event') {
-      return (
+      screen = (
         <AddEvent
-          onBack={() => setCurrentScreen('dashboard')}
+          onBack={() => navigate('dashboard', 'back')}
           initialData={tempEventData}
           onProceed={(data) => {
             setTempEventData(data);
-            setCurrentScreen('payment');
+            navigate('payment');
           }}
         />
       );
-    }
-    if (currentScreen === 'payment') {
-      return (
+    } else if (currentScreen === 'payment') {
+      screen = (
         <PaymentReview
           eventData={tempEventData}
-          onBack={() => setCurrentScreen('add-event')}
-          onPay={(amount) => {
+          onBack={() => navigate('add-event', 'back')}
+          onPay={(amount, payment) => {
             setTempAmountPaid(amount);
-            setCurrentScreen('success');
+            setTempPayment(payment || null);
+            navigate('success');
           }}
         />
       );
-    }
-    if (currentScreen === 'success') {
-      return (
+    } else if (currentScreen === 'success') {
+      screen = (
         <SuccessScreen
           amount={tempAmountPaid}
+          payment={tempPayment}
           onDone={() => {
             setTempEventData(null);
             setTempAmountPaid(0);
-            setCurrentScreen('dashboard');
+            setTempPayment(null);
+            navigate('dashboard', 'fade');
           }}
         />
       );
-    }
-    if (currentScreen === 'profile') {
-      return <ProfileScreen onNavigate={(screen) => setCurrentScreen(screen)} />;
-    }
-    if (currentScreen === 'status') {
-      return (
+    } else if (currentScreen === 'profile') {
+      screen = <ProfileScreen onNavigate={navigateTab} />;
+    } else if (currentScreen === 'status') {
+      screen = (
         <StatusScreen
-          onNavigate={(screen) => setCurrentScreen(screen)}
+          onNavigate={navigateTab}
           onEventPress={(event) => {
             setTempEventData(event);
-            setCurrentScreen('event-tracking');
+            navigate('event-tracking');
           }}
         />
       );
-    }
-    if (currentScreen === 'history') {
-      return (
+    } else if (currentScreen === 'history') {
+      screen = (
         <HistoryScreen
-          onNavigate={(screen) => setCurrentScreen(screen)}
+          onNavigate={navigateTab}
           onEventPress={(event) => {
             setTempEventData(event);
-            setCurrentScreen('history-details');
+            navigate('history-details');
           }}
         />
       );
-    }
-    if (currentScreen === 'payment-tab') {
-      return <PaymentTab onNavigate={(screen) => setCurrentScreen(screen)} />;
-    }
-    if (currentScreen === 'history-details') {
-      return (
+    } else if (currentScreen === 'payment-tab') {
+      screen = <PaymentTab onNavigate={navigateTab} />;
+    } else if (currentScreen === 'history-details') {
+      screen = (
         <HistoryDetails
           event={tempEventData}
-          onBack={() => setCurrentScreen('history')}
+          onBack={() => navigate('history', 'back')}
         />
       );
-    }
-    if (currentScreen === 'event-tracking') {
-      return (
+    } else if (currentScreen === 'event-tracking') {
+      screen = (
         <EventTracking
           event={tempEventData}
-          onBack={() => setCurrentScreen('status')}
+          onBack={() => navigate('status', 'back')}
+        />
+      );
+    } else {
+      screen = (
+        <Dashboard
+          onAddEvent={() => navigate('add-event')}
+          onNavigate={navigateTab}
+          onEventPress={(event) => {
+            setTempEventData(event);
+            navigate('event-tracking');
+          }}
         />
       );
     }
+
     return (
-      <Dashboard
-        onAddEvent={() => setCurrentScreen('add-event')}
-        onNavigate={(screen) => setCurrentScreen(screen)}
-        onEventPress={(event) => {
-          setTempEventData(event);
-          setCurrentScreen('event-tracking');
-        }}
-      />
+      <ScreenTransition screenKey={currentScreen} direction={direction}>
+        {screen}
+      </ScreenTransition>
     );
   }
 

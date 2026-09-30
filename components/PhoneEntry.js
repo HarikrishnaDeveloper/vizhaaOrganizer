@@ -28,7 +28,7 @@ const PhoneEntry = ({ onNext }) => {
       <BlobBackground />
       <View style={styles.card}>
         <Text style={styles.title}>Enter a Phone Number</Text>
-        <Text style={styles.subtitle}>Link your account with VIZHAA</Text>
+
 
         <View style={styles.inputRow}>
           <Text style={styles.prefix}>+91</Text>
@@ -91,7 +91,7 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontFamily: fonts.bold,
     color: colors.text,
-    marginBottom: 4,
+    marginBottom: 10,
   },
   subtitle: {
     fontSize: 12,

@@ -25,7 +25,7 @@ const DRESS_CODES = [
   { id: 'black_shirt',  label: 'Black Shirt',  icon: 'tshirt' },
   { id: 'white_tshirt', label: 'White T-Shirt', icon: 'tshirt' },
   { id: 'black_tshirt', label: 'Black T-Shirt', icon: 'tshirt' },
-  { id: 'other',        label: 'Other',         icon: 'ellipsis-h' },
+  { id: 'nil',          label: 'Nil',           icon: 'ban' },
 ];
 
 const SERVICES = [
@@ -229,7 +229,6 @@ const AddEvent = ({ onBack, onProceed, initialData }) => {
   const [eventType,      setEventType]      = useState(initialData?.eventType || 'wedding');
   const [otherEventType, setOtherEventType] = useState(initialData?.otherEventType || '');
   const [dressCode,      setDressCode]      = useState(initialData?.dressCode || 'white_shirt');
-  const [otherDress,     setOtherDress]     = useState(initialData?.otherDress || '');
   const [selectedSvcs,   setSelectedSvcs]   = useState(initialData?.selectedSvcs || []);
   const [costPerHead,    setCostPerHead]    = useState(initialData?.costPerHead || '');
 
@@ -263,7 +262,7 @@ const AddEvent = ({ onBack, onProceed, initialData }) => {
     }
     onProceed({
       eventName, location, inDate, inTime, outDate, outTime,
-      suppliers, eventType, otherEventType, dressCode, otherDress,
+      suppliers, eventType, otherEventType, dressCode,
       selectedSvcs, costPerHead, place,
     });
   };
@@ -493,12 +492,6 @@ const AddEvent = ({ onBack, onProceed, initialData }) => {
                 </TouchableOpacity>
               ))}
             </ScrollView>
-            {dressCode === 'other' && (
-              <FocusedInput style={[s.input, { marginTop: 10 }]}
-                placeholder="Describe your dress code…"
-                value={otherDress}
-                onChangeText={setOtherDress} />
-            )}
           </Field>
 
           {/* Services */}

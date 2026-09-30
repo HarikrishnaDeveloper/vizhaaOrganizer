@@ -10,15 +10,16 @@ const Verifying = ({ onDone }) => {
     Animated.timing(progress, {
       toValue: 1,
       duration: 2800,
-      useNativeDriver: false,
+      // Native driver keeps the bar smooth even while the JS thread is busy logging in
+      useNativeDriver: true,
     }).start(() => {
       onDone && onDone();
     });
   }, []);
 
-  const barWidth = progress.interpolate({
+  const barScale = progress.interpolate({
     inputRange: [0, 1],
-    outputRange: ['0%', '68%'],
+    outputRange: [0.001, 1],
   });
 
   return (
@@ -30,7 +31,7 @@ const Verifying = ({ onDone }) => {
           Do not press back or switch apps while we verify details.
         </Text>
         <View style={styles.track}>
-          <Animated.View style={[styles.fill, { width: barWidth }]} />
+          <Animated.View style={[styles.fill, { transform: [{ scaleX: barScale }] }]} />
         </View>
       </View>
     </View>
@@ -47,7 +48,7 @@ const styles = StyleSheet.create({
 
   card: {
     backgroundColor: colors.surfaceMuted,
-    borderRadius: 28,
+    borderRadius: 4,
     padding: 32,
     shadowColor: colors.black,
     shadowOffset: { width: 0, height: 10 },
@@ -77,7 +78,9 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   fill: {
+    width: '68%',
     height: '100%',
+    transformOrigin: 'left',
     borderRadius: 3,
     backgroundColor: colors.primary,
   },

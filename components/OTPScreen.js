@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView,
-  ScrollView, Keyboard, AppState, ActivityIndicator, InteractionManager, Pressable,
+  ScrollView, Keyboard, AppState, ActivityIndicator, Pressable,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -112,19 +112,18 @@ const OTPScreen = ({ phone = '', onSendOtp, onVerify, onResend, onSuccess, onCha
 
   // Focus on screen entry. autoFocus alone isn't reliable on Android: while
   // the screen is still animating in, the window can't take input focus and
-  // the keyboard request is dropped. Focus once transitions finish, then
-  // retry once if the keyboard still hasn't appeared.
+  // the keyboard request is dropped. Focus once the screen transition
+  // (ScreenTransition, ~260ms) has finished, then retry once if the keyboard
+  // still hasn't appeared.
   useEffect(() => {
-    const timers = [];
-    const task = InteractionManager.runAfterInteractions(() => {
-      timers.push(setTimeout(() => inputRef.current?.focus(), 150));
+    const timers = [
+      setTimeout(() => inputRef.current?.focus(), 400),
       // Never blur/refocus while the keyboard is already open
-      timers.push(setTimeout(() => {
+      setTimeout(() => {
         if (!keyboardUp.current && !Keyboard.isVisible()) focusInput();
-      }, 800));
-    });
+      }, 1050),
+    ];
     return () => {
-      task.cancel();
       timers.forEach(clearTimeout);
     };
   }, []);
@@ -246,9 +245,7 @@ const OTPScreen = ({ phone = '', onSendOtp, onVerify, onResend, onSuccess, onCha
           bounces={false}
         >
           <View style={styles.card}>
-            <View style={styles.iconBadge}>
-              <Ionicons name="shield-checkmark-outline" size={24} color={colors.primaryDark} />
-            </View>
+
 
             <Text style={styles.title}>Enter verification code</Text>
             <Text style={styles.subtitle}>
@@ -359,7 +356,7 @@ const OTPScreen = ({ phone = '', onSendOtp, onVerify, onResend, onSuccess, onCha
                   <Text style={styles.btnText}>Verifying...</Text>
                 </View>
               ) : (
-                <Text style={[styles.btnText, !canVerify && styles.btnTextDisabled]}>Verify & Continue</Text>
+                <Text style={[styles.btnText, !canVerify && styles.btnTextDisabled]}>Verify</Text>
               )}
             </PrimaryButton>
           </View>
@@ -444,7 +441,7 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   otpBox: {
-    borderRadius: 13,
+    borderRadius: 4,
     borderWidth: 1.5,
     borderColor: colors.border,
     backgroundColor: colors.surfaceSecondary,
@@ -528,7 +525,7 @@ const styles = StyleSheet.create({
     ...buttons.primary,
     width: '100%',
     height: 54,
-    borderRadius: 15,
+    borderRadius: 4,
   },
   btnDisabled: {
     ...buttons.disabled,

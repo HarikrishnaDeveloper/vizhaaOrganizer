@@ -3,6 +3,8 @@ import { File } from 'expo-file-system';
 import { BACKEND_URL } from '../config';
 
 const REFRESH_KEY = '@vizhaa/refresh_token';
+const REQUEST_TIMEOUT_MS = 15000;
+const UPLOAD_TIMEOUT_MS = 60000;
 
 let _accessToken = null;
 
@@ -27,14 +29,29 @@ const request = async (path, options = {}) => {
 
   // FormData (file uploads) must let fetch set its own multipart boundary
   const isForm = typeof FormData !== 'undefined' && options.body instanceof FormData;
-  const res = await fetch(url, {
-    ...options,
-    headers: {
-      ...(isForm ? {} : { 'Content-Type': 'application/json' }),
-      ...(_accessToken ? { Authorization: `Bearer ${_accessToken}` } : {}),
-      ...options.headers,
-    },
-  });
+
+  // fetch never times out on its own: an unreachable backend would spin forever
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), isForm ? UPLOAD_TIMEOUT_MS : REQUEST_TIMEOUT_MS);
+  let res;
+  try {
+    res = await fetch(url, {
+      ...options,
+      signal: controller.signal,
+      headers: {
+        ...(isForm ? {} : { 'Content-Type': 'application/json' }),
+        ...(_accessToken ? { Authorization: `Bearer ${_accessToken}` } : {}),
+        ...options.headers,
+      },
+    });
+  } catch (err) {
+    if (__DEV__) console.log(`[API ERROR] <= ${url}: ${err.name === 'AbortError' ? 'timed out' : err.message}`);
+    throw new Error(err.name === 'AbortError'
+      ? 'The server is taking too long to respond. Check your connection and try again.'
+      : 'Could not reach the server. Check your connection and try again.');
+  } finally {
+    clearTimeout(timer);
+  }
 
   const data = await res.json();
   if (__DEV__) console.log(`[API RESPONSE] <= ${res.status} ${url}`);
@@ -80,6 +97,8 @@ export const api = {
   // Payments
   createPaymentOrder: (amount) => request('/api/payments/order', { method: 'POST', body: JSON.stringify({ amount }) }),
   verifyPayment: (data) => request('/api/payments/verify', { method: 'POST', body: JSON.stringify(data) }),
+  // Short-lived path to the invoice PDF (opened in the browser, which has no token)
+  getInvoiceLink: (paymentId) => request(`/api/payments/${paymentId}/invoice-link`, { method: 'GET' }),
 
   // Place search / geocoding via the backend (the provider key stays on the server)
   placesAutocomplete: (input, bias) =>

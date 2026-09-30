@@ -1,29 +1,52 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
+  ActivityIndicator,
+  Alert,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { colors, fonts, radii, buttons } from '../theme';
 import PrimaryButton from './ui/PrimaryButton';
+import { api } from '../services/api';
+import { BACKEND_URL } from '../config';
 
 const CONFETTI_SHADES = [colors.primary, colors.primaryLight, colors.lime, colors.purple];
 
-const SuccessScreen = ({ amount, onDone }) => {
-  const transactionId = Math.random().toString().slice(2, 18);
-  const dateStr = new Date().toLocaleDateString('en-GB', {
+// payment: { id, razorpayPaymentId, amount, createdAt } from /api/payments/verify
+const SuccessScreen = ({ amount, payment, onDone }) => {
+  const [downloading, setDownloading] = useState(false);
+
+  const paidAt = payment?.createdAt ? new Date(payment.createdAt) : new Date();
+  const transactionId = payment?.razorpayPaymentId || '—';
+  const dateStr = paidAt.toLocaleDateString('en-GB', {
     day: '2-digit',
     month: 'short',
     year: 'numeric'
   }).toUpperCase();
-  const timeStr = new Date().toLocaleTimeString('en-US', {
+  const timeStr = paidAt.toLocaleTimeString('en-US', {
     hour: '2-digit',
     minute: '2-digit',
     hour12: false
   }) + ' IST';
+
+  // Opens the PDF in the browser, which lets the user save or print it
+  const handleDownloadInvoice = async () => {
+    if (!payment?.id) return;
+    setDownloading(true);
+    try {
+      const { path } = await api.getInvoiceLink(payment.id);
+      await Linking.openURL(`${BACKEND_URL}${path}`);
+    } catch (err) {
+      Alert.alert('Invoice unavailable', err.message || 'Could not open the invoice. Please try again.');
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -68,7 +91,7 @@ const SuccessScreen = ({ amount, onDone }) => {
             <Text style={styles.value}>{transactionId}</Text>
 
             <Text style={styles.label}>Amount</Text>
-            <Text style={styles.value}>₹{amount || '125'}</Text>
+            <Text style={styles.value}>₹{Number(payment?.amount ?? amount ?? 0).toLocaleString('en-IN')}</Text>
 
             <Text style={styles.label}>Date & Time</Text>
             <Text style={styles.value}>{dateStr} | {timeStr}</Text>
@@ -82,7 +105,24 @@ const SuccessScreen = ({ amount, onDone }) => {
           </View>
         </View>
 
-        <PrimaryButton style={styles.doneBtn} onPress={onDone}>
+        {payment?.id && (
+          <TouchableOpacity
+            style={styles.invoiceBtn}
+            onPress={handleDownloadInvoice}
+            disabled={downloading}
+            activeOpacity={0.8}>
+            {downloading ? (
+              <ActivityIndicator color={colors.primary} />
+            ) : (
+              <>
+                <Ionicons name="download-outline" size={20} color={colors.text} />
+                <Text style={styles.invoiceBtnText}>Download Invoice</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        )}
+
+        <PrimaryButton style={[styles.doneBtn, payment?.id && styles.doneBtnAfterInvoice]} onPress={onDone}>
           <Text style={styles.doneBtnText}>Done</Text>
         </PrimaryButton>
       </View>
@@ -200,10 +240,23 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     backgroundColor: colors.background,
   },
+  invoiceBtn: {
+    ...buttons.secondary,
+    marginTop: 36,
+    width: '100%',
+    flexDirection: 'row',
+    gap: 8,
+  },
+  invoiceBtnText: {
+    ...buttons.secondaryText,
+  },
   doneBtn: {
     ...buttons.primary,
     marginTop: 36,
     width: '100%',
+  },
+  doneBtnAfterInvoice: {
+    marginTop: 12,
   },
   doneBtnText: {
     ...buttons.primaryText,
