@@ -1,7 +1,7 @@
 import React, { useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, Animated } from 'react-native';
 import BlobBackground from './BlobBackground';
-import { colors, fonts } from '../theme';
+import { colors, fonts, radii } from '../theme';
 
 const Verifying = ({ onDone }) => {
   const progress = useRef(new Animated.Value(0)).current;
@@ -48,7 +48,7 @@ const styles = StyleSheet.create({
 
   card: {
     backgroundColor: colors.surfaceMuted,
-    borderRadius: 4,
+    borderRadius: radii.card,
     padding: 32,
     shadowColor: colors.black,
     shadowOffset: { width: 0, height: 10 },

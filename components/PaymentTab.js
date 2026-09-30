@@ -390,7 +390,7 @@ const styles = StyleSheet.create({
 
   // Summary Cards
   summaryScroll: { paddingRight: 10, gap: 12 },
-  summaryCard: { width: 152, borderRadius: radii.lg, padding: 16, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, ...shadows.card },
+  summaryCard: { width: 152, borderRadius: radii.card, padding: 16, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, ...shadows.card },
   summaryIconWrap: { width: 36, height: 36, borderRadius: 10, justifyContent: 'center', alignItems: 'center', marginBottom: 14 },
   summaryValue: { fontSize: 20, fontFamily: fonts.bold, color: colors.text, marginBottom: 4 },
   summaryLabel: { fontSize: 12, fontFamily: fonts.regular, color: colors.textSecondary, lineHeight: 15 },
@@ -416,7 +416,7 @@ const styles = StyleSheet.create({
   // Booking Card
   bookingCard: {
     backgroundColor: colors.surface,
-    borderRadius: radii.xl,
+    borderRadius: radii.card,
     padding: 18,
     borderWidth: 1,
     borderColor: colors.border,
@@ -461,7 +461,7 @@ const styles = StyleSheet.create({
   modalSub: { fontSize: 13, fontFamily: fonts.regular, color: colors.textSecondary },
   modalBody: { padding: 24 },
   modalEventName: { fontSize: 16, fontFamily: fonts.semibold, color: colors.text, marginBottom: 16, textAlign: 'center' },
-  modalAmountCard: { backgroundColor: colors.surfaceSecondary, borderRadius: radii.lg, borderWidth: 1, borderColor: colors.border, padding: 16, gap: 10, marginBottom: 24 },
+  modalAmountCard: { backgroundColor: colors.surfaceSecondary, borderRadius: radii.card, borderWidth: 1, borderColor: colors.border, padding: 16, gap: 10, marginBottom: 24 },
   modalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   modalRowHighlight: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, padding: 12, borderRadius: radii.md, marginTop: 4 },
   modalRowLabel: { fontSize: 14, fontFamily: fonts.regular, color: colors.textSecondary },

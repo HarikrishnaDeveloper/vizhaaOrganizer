@@ -6,7 +6,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import BlobBackground from './BlobBackground';
-import { COLORS, colors, fonts, buttons, alpha } from '../theme';
+import { COLORS, colors, fonts, radii, buttons, alpha } from '../theme';
 import PrimaryButton from './ui/PrimaryButton';
 
 const OTP_LENGTH = 6;
@@ -385,7 +385,7 @@ const styles = StyleSheet.create({
     maxWidth: 440,
     alignSelf: 'center',
     backgroundColor: colors.white,
-    borderRadius: 4,
+    borderRadius: radii.card,
     borderWidth: 1,
     borderColor: colors.border,
     paddingVertical: 28,

@@ -20,6 +20,8 @@ const CONFETTI_SHADES = [colors.primary, colors.primaryLight, colors.lime, color
 // payment: { id, razorpayPaymentId, amount, createdAt } from /api/payments/verify
 const SuccessScreen = ({ amount, payment, onDone }) => {
   const [downloading, setDownloading] = useState(false);
+  // Pay Later: event created without a payment
+  const isPayLater = !payment && !Number(amount);
 
   const paidAt = payment?.createdAt ? new Date(payment.createdAt) : new Date();
   const transactionId = payment?.razorpayPaymentId || '—';
@@ -75,11 +77,13 @@ const SuccessScreen = ({ amount, payment, onDone }) => {
           ))}
         </View>
 
-        <Text style={styles.thankYouText}>Thank You</Text>
-        <Text style={styles.subtitle}>Your payment has processed successful</Text>
+        <Text style={styles.thankYouText}>{isPayLater ? 'Event Created' : 'Thank You'}</Text>
+        <Text style={styles.subtitle}>
+          {isPayLater ? 'Pay anytime from the Payments tab' : 'Your payment has processed successful'}
+        </Text>
 
         {/* Receipt Card */}
-        <View style={styles.receiptCard}>
+        {!isPayLater && <View style={styles.receiptCard}>
           <View style={styles.cardHeader}>
             <View style={styles.dot} />
             <View style={styles.dashedLine} />
@@ -103,7 +107,7 @@ const SuccessScreen = ({ amount, payment, onDone }) => {
               <View key={i} style={styles.scallop} />
             ))}
           </View>
-        </View>
+        </View>}
 
         {payment?.id && (
           <TouchableOpacity
@@ -189,7 +193,7 @@ const styles = StyleSheet.create({
   receiptCard: {
     width: '100%',
     backgroundColor: colors.surface,
-    borderRadius: radii.lg,
+    borderRadius: radii.card,
     paddingTop: 28,
     overflow: 'hidden',
   },

@@ -5,7 +5,7 @@ import * as Location from 'expo-location';
 import * as Notifications from 'expo-notifications';
 import * as Contacts from 'expo-contacts';
 import BlobBackground from './BlobBackground';
-import { colors, fonts } from '../theme';
+import { colors, fonts, radii } from '../theme';
 import PrimaryButton from './ui/PrimaryButton';
 
 const ITEMS = [
@@ -98,7 +98,7 @@ const styles = StyleSheet.create({
 
   card: {
     backgroundColor: colors.surfaceMuted,
-    borderRadius: 28,
+    borderRadius: radii.card,
     paddingHorizontal: 24,
     paddingBottom: 28,
     paddingTop: 16,

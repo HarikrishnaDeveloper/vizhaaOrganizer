@@ -131,6 +131,7 @@ export const radii = {
   md: 3.5,
   lg: 7.5,
   xl: 15.5,
+  card: 4,      // every card surface
   pill: 999,
 };
 

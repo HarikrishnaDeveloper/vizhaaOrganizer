@@ -196,6 +196,36 @@ const tp = StyleSheet.create({
   sep:          { fontSize:22, fontFamily: fonts.bold, color: colors.text, marginBottom:4, alignSelf:'center' },
 });
 
+// "DD/MM/YYYY" + "hh:mm AM" → Date (local time), or null
+const toDateTime = (date, time) => {
+  const d = date?.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  const t = time?.match(/^(\d{1,2}):(\d{2})\s(AM|PM)$/);
+  if (!d || !t) return null;
+  const hour = (parseInt(t[1], 10) % 12) + (t[3] === 'PM' ? 12 : 0);
+  return new Date(+d[3], +d[2] - 1, +d[1], hour, +t[2]);
+};
+
+const plural = (n, unit) => `${n} ${unit}${n === 1 ? '' : 's'}`;
+
+// Minutes between in and out; out date defaults to the in date. null until both times are set
+const eventDurationMinutes = (inDate, inTime, outDate, outTime) => {
+  const start = toDateTime(inDate, inTime);
+  const end = toDateTime(outDate || inDate, outTime);
+  if (!start || !end) return null;
+  return Math.round((end - start) / 60000);
+};
+
+// 600 → "10 hours", 1440 → "1 day (24 hours)", 2640 → "1 day 20 hours (44 hours)"
+const formatDuration = (minutes) => {
+  const days = Math.floor(minutes / 1440);
+  const hours = Math.floor((minutes % 1440) / 60);
+  const mins = minutes % 60;
+  const parts = [days && plural(days, 'day'), hours && plural(hours, 'hour'), mins && plural(mins, 'min')].filter(Boolean);
+  const totalHours = minutes / 60;
+  const total = days ? ` (${plural(Number.isInteger(totalHours) ? totalHours : +totalHours.toFixed(2), 'hour')})` : '';
+  return parts.join(' ') + total;
+};
+
 const FocusedInput = ({ placeholder, ...props }) => {
   const [isFocused, setIsFocused] = useState(false);
   return (
@@ -241,6 +271,8 @@ const AddEvent = ({ onBack, onProceed, initialData }) => {
     setSelectedSvcs(p => p.includes(id) ? p.filter(s => s !== id) : [...p, id]);
 
   const totalCost = (parseFloat(costPerHead) || 0) * (parseInt(suppliers) || 0);
+  const durationMins = eventDurationMinutes(inDate, inTime, outDate, outTime);
+  const durationInvalid = durationMins != null && durationMins <= 0;
 
   const updatePlace = (key) => (val) => setPlace(p => ({ ...p, [key]: val }));
 
@@ -258,6 +290,10 @@ const AddEvent = ({ onBack, onProceed, initialData }) => {
     ].filter(Boolean);
     if (missing.length) {
       Alert.alert('Details required', `Please add: ${missing.join(', ')}`);
+      return;
+    }
+    if (durationInvalid) {
+      Alert.alert('Check event timing', 'Out date & time must be after the in date & time.');
       return;
     }
     onProceed({
@@ -472,6 +508,17 @@ const AddEvent = ({ onBack, onProceed, initialData }) => {
             </View>
           </View>
 
+          {/* Event duration, from in to out */}
+          {durationMins != null && (
+            <View style={[s.durationRow, durationInvalid && s.durationRowError]}>
+              <Ionicons name={durationInvalid ? 'alert-circle-outline' : 'hourglass-outline'} size={16}
+                color={durationInvalid ? colors.danger : colors.icon} />
+              <Text style={[s.durationText, durationInvalid && s.durationTextError]}>
+                {durationInvalid ? 'Out time must be after in time' : `Duration: ${formatDuration(durationMins)}`}
+              </Text>
+            </View>
+          )}
+
           {/* Suppliers */}
           <Field label="Number of Suppliers">
             <FocusedInput style={s.input} placeholder="e.g. 50" keyboardType="numeric"
@@ -536,11 +583,14 @@ const AddEvent = ({ onBack, onProceed, initialData }) => {
               <CostRow label="Total Estimate"      value={totalCost > 0 ? `₹${totalCost.toLocaleString()}` : '—'} bold />
               {totalCost > 0 && (
                 <>
+                  <Text style={s.balText}>Choose how to pay on the next step</Text>
+                  <CostRow label="Full payment (100%)" value={`₹${totalCost.toLocaleString()}`} unit="" />
                   <View style={s.advanceBar}>
                     <Text style={s.advLbl}>Advance (25%)</Text>
                     <Text style={s.advVal}>₹{(totalCost * 0.25).toLocaleString()}</Text>
                   </View>
                   <Text style={s.balText}>Balance after event : ₹{(totalCost * 0.75).toLocaleString()}</Text>
+                  <CostRow label="Pay later" value="₹0 now" unit="" />
                 </>
               )}
 
@@ -697,7 +747,7 @@ const s = StyleSheet.create({
   /* Location */
   locSelectCard: {
     backgroundColor: colors.surfaceSecondary, borderWidth: 1, borderColor: colors.border,
-    borderRadius: radii.lg, padding: 14,
+    borderRadius: radii.card, padding: 14,
   },
   locSelectHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
   locSelectTitle: { fontSize: 14, fontFamily: fonts.semibold, color: colors.text },
@@ -709,7 +759,7 @@ const s = StyleSheet.create({
   locCurrentRow: { flexDirection: 'row', alignItems: 'center', gap: 8, alignSelf: 'flex-start', marginTop: 12, paddingVertical: 4 },
   locCurrentText: { fontSize: 13, fontFamily: fonts.semibold, color: colors.text, textDecorationLine: 'underline' },
 
-  locCard: { borderRadius: radii.lg, borderWidth: 1, borderColor: colors.border, overflow: 'hidden', backgroundColor: colors.surface },
+  locCard: { borderRadius: radii.card, borderWidth: 1, borderColor: colors.border, overflow: 'hidden', backgroundColor: colors.surface },
   locMap: { height: 140, width: '100%' },
   locCardBody: { flexDirection: 'row', alignItems: 'center', padding: 12, gap: 10 },
   locPinIcon: { width: 34, height: 34, borderRadius: 17, backgroundColor: colors.primary, justifyContent: 'center', alignItems: 'center' },
@@ -737,7 +787,7 @@ const s = StyleSheet.create({
 
   /* Type / Dress / Service Cards */
   typeCard: {
-    width: 86, backgroundColor: colors.surface, borderRadius: radii.md + 2, padding: 10,
+    width: 86, backgroundColor: colors.surface, borderRadius: radii.card, padding: 10,
     marginRight: 10, alignItems: 'center',
     borderWidth: 1, borderColor: colors.border,
   },
@@ -748,7 +798,7 @@ const s = StyleSheet.create({
   typeLabelActive: { fontFamily: fonts.semibold, color: colors.text },
 
   /* Cost Card */
-  costCard:   { backgroundColor: colors.surface, borderRadius: radii.xl, marginTop: 4, overflow: 'hidden', borderWidth: 1, borderColor: colors.border, ...shadows.card },
+  costCard:   { backgroundColor: colors.surface, borderRadius: radii.card, marginTop: 4, overflow: 'hidden', borderWidth: 1, borderColor: colors.border, ...shadows.card },
   costHeader: { paddingVertical: 16, paddingHorizontal: 20, backgroundColor: colors.darkSurface },
   costHeaderText: { fontSize: 16, fontFamily: fonts.bold, color: colors.white },
   costBody:   { padding: 20 },
@@ -764,6 +814,14 @@ const s = StyleSheet.create({
   },
   advLbl: { fontSize: 13, fontFamily: fonts.semibold, color: colors.text },
   advVal: { fontSize: 14, fontFamily: fonts.bold, color: colors.text },
+  durationRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    paddingHorizontal: 14, paddingVertical: 10, marginBottom: 16,
+    borderRadius: radii.md, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surfaceSecondary,
+  },
+  durationRowError: { borderColor: colors.dangerBorder, backgroundColor: colors.dangerBackground },
+  durationText: { fontSize: 13, fontFamily: fonts.semibold, color: colors.text },
+  durationTextError: { color: colors.danger },
   balText:{ fontSize: 11, fontFamily: fonts.regular, color: colors.textSecondary, textAlign: 'right', marginBottom: 18 },
 
   couponInput: {

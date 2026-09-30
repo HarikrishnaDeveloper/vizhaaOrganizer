@@ -174,7 +174,7 @@ const styles = StyleSheet.create({
   cardContainer: {
     marginTop: 8,
     marginBottom: 36,
-    borderRadius: radii.xl,
+    borderRadius: radii.card,
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
@@ -183,7 +183,7 @@ const styles = StyleSheet.create({
   card: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: radii.xl,
+    borderRadius: radii.card,
     padding: 18,
     minHeight: 130,
   },
@@ -227,7 +227,7 @@ const styles = StyleSheet.create({
   },
   detailsCard: {
     backgroundColor: colors.surface,
-    borderRadius: radii.xl,
+    borderRadius: radii.card,
     padding: 20,
     paddingTop: 32,
     marginBottom: 30,

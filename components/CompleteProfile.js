@@ -146,7 +146,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   cardContainer: {
-    borderRadius: 28,
+    borderRadius: radii.card,
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: colors.border,

@@ -17,6 +17,7 @@ import { api } from '../services/api';
 import BottomTabBar, { TAB_BAR_HEIGHT } from './BottomTabBar';
 import { colors, fonts, radii, shadows, alpha, COLORS } from '../theme';
 import PrimaryButton from './ui/PrimaryButton';
+import { EVENT_STATUS, eventStatusLabel } from '../constants/eventStatus';
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December'];
@@ -39,15 +40,16 @@ const formatDate = (d) => (d ? `${d.getDate()} ${MONTHS[d.getMonth()].slice(0, 3
 
 // Status pill: semantic colours only where the status carries meaning
 const STATUS_STYLES = {
-  'In Progress': { label: 'In progress', color: COLORS.primaryDark, bg: alpha(COLORS.primary, 0.14) },
-  Upcoming: { label: 'Upcoming', color: COLORS.primaryDark, bg: alpha(COLORS.primary, 0.14) },
-  APPROVED: { label: 'Confirmed', color: COLORS.primaryDark, bg: alpha(COLORS.primary, 0.14) },
-  Completed: { label: 'Completed', color: COLORS.text, bg: alpha(COLORS.success, 0.16) },
-  PENDING: { label: 'Pending approval', color: COLORS.text, bg: alpha(COLORS.warning, 0.2) },
-  REJECTED: { label: 'Rejected', color: COLORS.text, bg: alpha(COLORS.error, 0.16) },
+  [EVENT_STATUS.IN_PROGRESS]: { color: COLORS.primaryDark, bg: alpha(COLORS.primary, 0.14) },
+  [EVENT_STATUS.APPROVED]: { color: COLORS.primaryDark, bg: alpha(COLORS.primary, 0.14) },
+  [EVENT_STATUS.COMPLETED]: { color: COLORS.text, bg: alpha(COLORS.success, 0.16) },
+  [EVENT_STATUS.PENDING]: { color: COLORS.text, bg: alpha(COLORS.warning, 0.2) },
+  [EVENT_STATUS.REJECTED]: { color: COLORS.text, bg: alpha(COLORS.error, 0.16) },
 };
-const statusStyle = (status) =>
-  STATUS_STYLES[status] || { label: status || 'Scheduled', color: COLORS.textSecondary, bg: COLORS.surfaceSecondary };
+const statusStyle = (status) => ({
+  label: eventStatusLabel(status),
+  ...(STATUS_STYLES[status] || { color: COLORS.textSecondary, bg: COLORS.surfaceSecondary }),
+});
 
 const Dashboard = ({ onAddEvent, onNavigate, onEventPress }) => {
   const { user } = useAuth();
@@ -103,8 +105,9 @@ const Dashboard = ({ onAddEvent, onNavigate, onEventPress }) => {
     fetchEvents();
   };
 
-  const activeEvents = filteredEvents.filter(e => e.status === 'In Progress');
-  const upcomingEvents = filteredEvents.filter(e => e.status === 'Upcoming');
+  const activeEvents = filteredEvents.filter(e => e.status === EVENT_STATUS.IN_PROGRESS);
+  // Upcoming: confirmed by Vizhaa, or still awaiting approval
+  const upcomingEvents = filteredEvents.filter(e => e.status === EVENT_STATUS.APPROVED || e.status === EVENT_STATUS.PENDING);
 
   // List view: soonest first, undated events last
   const sortedEvents = useMemo(() => [...filteredEvents].sort((a, b) => {
@@ -161,7 +164,7 @@ const Dashboard = ({ onAddEvent, onNavigate, onEventPress }) => {
         <View style={styles.statsRow}>
           <StatItem label="Active" value={String(activeEvents.length).padStart(2, '0')} icon="flash-outline" />
           <StatItem label="Upcoming" value={String(upcomingEvents.length).padStart(2, '0')} icon="time-outline" />
-          <StatItem label="Completed" value={String(events.filter(e => e.status === 'Completed').length).padStart(2, '0')} icon="checkmark-circle-outline" />
+          <StatItem label="Completed" value={String(events.filter(e => e.status === EVENT_STATUS.COMPLETED).length).padStart(2, '0')} icon="checkmark-circle-outline" />
         </View>
 
         {/* Search */}
@@ -561,7 +564,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 20,
     marginBottom: 12,
     backgroundColor: colors.white,
-    borderRadius: 18,
+    borderRadius: radii.card,
     borderWidth: 1,
     borderColor: colors.border,
     padding: 16,

@@ -4,7 +4,7 @@ import {
 } from 'react-native';
 import BlobBackground from './BlobBackground';
 import TextInput from './ui/ThemedTextInput';
-import { colors, fonts, shadows } from '../theme';
+import { colors, fonts, radii, shadows } from '../theme';
 import PrimaryButton from './ui/PrimaryButton';
 
 const PhoneEntry = ({ onNext }) => {
@@ -78,7 +78,7 @@ const styles = StyleSheet.create({
 
   card: {
     backgroundColor: colors.surfaceMuted,
-    borderRadius: 4,
+    borderRadius: radii.card,
     padding: 28,
     shadowColor: colors.black,
     shadowOffset: { width: 0, height: 10 },

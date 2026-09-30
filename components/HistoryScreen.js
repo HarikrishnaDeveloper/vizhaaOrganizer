@@ -5,6 +5,7 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import BottomTabBar, { TAB_BAR_HEIGHT } from './BottomTabBar';
 import { colors, fonts, radii, shadows } from '../theme';
 import { api } from '../services/api';
+import { EVENT_STATUS } from '../constants/eventStatus';
 
 const HistoryScreen = ({ onNavigate, onEventPress }) => {
   const [historyEvents, setHistoryEvents] = useState([]);
@@ -17,10 +18,9 @@ const HistoryScreen = ({ onNavigate, onEventPress }) => {
     try {
       const res = await api.getEvents();
       if (res.success && res.events) {
-        // Filter events that have status "Completed"
-        const completedEvents = res.events.filter(e => e.status === 'Completed');
-        // Sort by creation date or end date (newest first)
-        completedEvents.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+        // Events the admin has marked completed, most recently finished first
+        const completedEvents = res.events.filter(e => e.status === EVENT_STATUS.COMPLETED);
+        completedEvents.sort((a, b) => new Date(b.completedAt || b.createdAt) - new Date(a.completedAt || a.createdAt));
         setHistoryEvents(completedEvents);
       }
     } catch (err) {
@@ -138,7 +138,7 @@ const styles = StyleSheet.create({
   },
   cardContainer: {
     width: '100%',
-    borderRadius: radii.xl,
+    borderRadius: radii.card,
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
@@ -147,7 +147,7 @@ const styles = StyleSheet.create({
   card: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: radii.xl,
+    borderRadius: radii.card,
     padding: 18,
     minHeight: 130,
   },

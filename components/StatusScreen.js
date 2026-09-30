@@ -5,6 +5,7 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { api } from '../services/api';
 import BottomTabBar, { TAB_BAR_HEIGHT } from './BottomTabBar';
 import { colors, fonts, radii, shadows } from '../theme';
+import { EVENT_STATUS, eventStatusLabel, assignedSupplierCount } from '../constants/eventStatus';
 
 const StatusScreen = ({ onNavigate, onEventPress }) => {
   const [events, setEvents] = useState([]);
@@ -81,9 +82,9 @@ const StatusScreen = ({ onNavigate, onEventPress }) => {
                           {event.type}
                         </Text>
                       </View>
-                      <View style={[styles.statusTag, event.status === 'In Progress' && styles.statusTagActive]}>
-                        <Text style={[styles.statusText, event.status === 'In Progress' && styles.statusTextActive]}>
-                          {event.status}
+                      <View style={[styles.statusTag, event.status === EVENT_STATUS.IN_PROGRESS && styles.statusTagActive]}>
+                        <Text style={[styles.statusText, event.status === EVENT_STATUS.IN_PROGRESS && styles.statusTextActive]}>
+                          {eventStatusLabel(event.status)}
                         </Text>
                       </View>
                     </View>
@@ -100,14 +101,15 @@ const StatusScreen = ({ onNavigate, onEventPress }) => {
                       <Text style={styles.detailText}>{event.date}  •  {event.inTime}</Text>
                     </View>
 
-                    {event.status === 'In Progress' && (
+                    {event.status === EVENT_STATUS.IN_PROGRESS && (
                       <View style={styles.progressSection}>
                         <View style={styles.progressInfo}>
                           <Text style={styles.progressLabel}>Execution Progress</Text>
-                          <Text style={styles.progressVal}>{Math.round((event.progress || 0) * 100)}%</Text>
+                          {/* Backend sends progress as 0–100 */}
+                          <Text style={styles.progressVal}>{Math.round(event.progress || 0)}%</Text>
                         </View>
                         <View style={styles.progressBg}>
-                          <View style={[styles.progressFill, { width: `${(event.progress || 0) * 100}%` }]} />
+                          <View style={[styles.progressFill, { width: `${Math.min(100, event.progress || 0)}%` }]} />
                         </View>
                       </View>
                     )}
@@ -115,7 +117,7 @@ const StatusScreen = ({ onNavigate, onEventPress }) => {
                     <View style={styles.cardFooter}>
                       <View style={styles.supplierInfo}>
                         <Ionicons name="people-outline" size={16} color={colors.iconSecondary} />
-                        <Text style={styles.supplierText}>{event.suppliers} Suppliers assigned</Text>
+                        <Text style={styles.supplierText}>{assignedSupplierCount(event)} / {event.suppliers} Suppliers assigned</Text>
                       </View>
                       <Ionicons name="chevron-forward" size={18} color={colors.iconMuted} />
                     </View>
@@ -168,7 +170,7 @@ const styles = StyleSheet.create({
   cardContainer: {
     marginBottom: 14,
     backgroundColor: colors.surface,
-    borderRadius: radii.xl,
+    borderRadius: radii.card,
     borderWidth: 1,
     borderColor: colors.border,
     ...shadows.card,

@@ -12,8 +12,10 @@ import { api } from '../services/api';
 import { COLORS, colors, fonts, radii, shadows, buttons, input, alpha } from '../theme';
 import PrimaryButton from './ui/PrimaryButton';
 
-// Whole of India, shown until we know where to look
-const DEFAULT_REGION = { latitude: 20.5937, longitude: 78.9629, latitudeDelta: 18, longitudeDelta: 18 };
+// Service area: Coimbatore, Tamil Nadu. The map opens here and search is biased to it
+const COIMBATORE = { latitude: 11.0168, longitude: 76.9558 };
+const SERVICE_AREA_SUFFIX = 'Coimbatore, Tamil Nadu';
+const DEFAULT_REGION = { ...COIMBATORE, latitudeDelta: 0.18, longitudeDelta: 0.18 };
 // Street-level zoom used once a place is chosen
 const PLACE_DELTA = { latitudeDelta: 0.006, longitudeDelta: 0.006 };
 const MAX_DEVICE_RESULTS = 5;
@@ -93,7 +95,8 @@ const LocationPicker = ({ visible, startWith = 'search', initial, onClose, onCon
   const geocodeTimer = useRef(null);
   const searchId = useRef(0);
   const geocodeId = useRef(0);
-  const biasRef = useRef(null);
+  // True while the map still shows the default Coimbatore view the user hasn't touched
+  const pristineRef = useRef(false);
   // Venue chosen from search; its name survives small pin adjustments
   const anchorRef = useRef(null);
   // null = unknown, true = backend place search, false = device geocoder fallback
@@ -107,7 +110,10 @@ const LocationPicker = ({ visible, startWith = 'search', initial, onClose, onCon
   const [place, setPlace] = useState(null);
   const [message, setMessage] = useState('');
 
-  const moveTo = (coords) => mapRef.current?.animateToRegion({ ...coords, ...PLACE_DELTA }, 450);
+  const moveTo = (coords) => {
+    pristineRef.current = false;
+    mapRef.current?.animateToRegion({ ...coords, ...PLACE_DELTA }, 450);
+  };
 
   const useCurrentLocation = async () => {
     Keyboard.dismiss();
@@ -140,11 +146,7 @@ const LocationPicker = ({ visible, startWith = 'search', initial, onClose, onCon
     setSuggestions([]);
     setMessage('');
     setPlace(initial || null);
-    // Bias suggestions near the user when we already have permission (no prompt here)
-    Location.getForegroundPermissionsAsync()
-      .then(({ granted }) => (granted ? Location.getLastKnownPositionAsync() : null))
-      .then((pos) => { if (pos) biasRef.current = { latitude: pos.coords.latitude, longitude: pos.coords.longitude }; })
-      .catch(() => {});
+    pristineRef.current = initial?.latitude == null;
     if (!initial) {
       if (startWith === 'current') useCurrentLocation();
       else setTimeout(() => searchRef.current?.focus(), 350);
@@ -161,7 +163,9 @@ const LocationPicker = ({ visible, startWith = 'search', initial, onClose, onCon
       setMessage('Allow location access to search places, or drag the map to the venue.');
       return;
     }
-    const found = (await Location.geocodeAsync(text)).slice(0, MAX_DEVICE_RESULTS);
+    // The device geocoder has no location bias, so scope bare names to the service area
+    const scoped = text.includes(',') ? text : `${text}, ${SERVICE_AREA_SUFFIX}`;
+    const found = (await Location.geocodeAsync(scoped)).slice(0, MAX_DEVICE_RESULTS);
     const detailed = await Promise.all(found.map(async (coords) => {
       const [geo] = await Location.reverseGeocodeAsync(coords).catch(() => []);
       const p = fromDeviceAddress(geo, coords);
@@ -182,7 +186,7 @@ const LocationPicker = ({ visible, startWith = 'search', initial, onClose, onCon
     try {
       if (backendRef.current !== false) {
         try {
-          const res = await api.placesAutocomplete(q, biasRef.current || undefined);
+          const res = await api.placesAutocomplete(q, COIMBATORE);
           backendRef.current = true;
           if (id !== searchId.current) return;
           setSuggestions(res.suggestions.map((s) => ({ key: s.placeId, ...s })));
@@ -248,7 +252,7 @@ const LocationPicker = ({ visible, startWith = 'search', initial, onClose, onCon
 
   // The pin is fixed at the map centre, so the centre is the chosen point
   const onRegionChangeComplete = (region) => {
-    if (region.latitudeDelta > 5) return; // initial whole-country view
+    if (pristineRef.current) return; // default city view, nothing picked yet
     const coords = { latitude: region.latitude, longitude: region.longitude };
     setPlace((p) => ({ ...(p || {}), ...coords }));
     clearTimeout(geocodeTimer.current);
@@ -296,7 +300,7 @@ const LocationPicker = ({ visible, startWith = 'search', initial, onClose, onCon
             <TextInput
               ref={searchRef}
               style={styles.searchInput}
-              placeholder="Search for a place"
+              placeholder="Search venues in Coimbatore"
               value={query}
               onChangeText={onChangeQuery}
               onSubmitEditing={() => runSearch(query, { submitted: true })}
@@ -323,6 +327,7 @@ const LocationPicker = ({ visible, startWith = 'search', initial, onClose, onCon
             customMapStyle={MONOCHROME_MAP_STYLE}
             initialRegion={initialRegion}
             onRegionChangeComplete={onRegionChangeComplete}
+            onTouchStart={() => { pristineRef.current = false; }}
             showsUserLocation
             showsMyLocationButton={false}
             toolbarEnabled={false}

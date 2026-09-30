@@ -34,7 +34,7 @@ const placeFields = (place) => ({
 
 const PaymentReview = ({ eventData, onBack, onPay }) => {
   const { user } = useAuth();
-  const [paymentType, setPaymentType] = useState('advance'); // 'total' or 'advance'
+  const [paymentType, setPaymentType] = useState('advance'); // 'total' | 'advance' | 'later'
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const costPerHead = parseFloat(eventData?.costPerHead) || 0;
@@ -42,7 +42,40 @@ const PaymentReview = ({ eventData, onBack, onPay }) => {
   const totalAmount = costPerHead * suppliersCount;
 
   const advanceAmount = totalAmount * 0.25;
-  const currentPayAmount = paymentType === 'total' ? totalAmount : advanceAmount;
+  const isPayLater = paymentType === 'later';
+  const currentPayAmount = paymentType === 'total' ? totalAmount : isPayLater ? 0 : advanceAmount;
+
+  const buildEventPayload = (advancePaid) => ({
+    name: eventData.eventName,
+    type: eventData.eventType,
+    location: eventData.location,
+    ...placeFields(eventData.place),
+    date: eventData.inDate,
+    inDate: eventData.inDate,
+    inTime: eventData.inTime,
+    outDate: eventData.outDate,
+    outTime: eventData.outTime,
+    suppliers: suppliersCount,
+    dressCode: eventData.dressCode,
+    services: eventData.selectedSvcs || [],
+    costPerHead: costPerHead,
+    totalCost: totalAmount,
+    advancePaid,
+  });
+
+  // Pay Later: create the event with nothing paid; the balance is settled from the Payments tab
+  const handlePayLater = async () => {
+    setIsSubmitting(true);
+    try {
+      const res = await api.createEvent(buildEventPayload(0));
+      if (res?.success === false) throw new Error(res.message || 'Failed to create event');
+      onPay(0, null);
+    } catch (err) {
+      Alert.alert('Error', err.message || 'Could not create the event');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   // ─── TEST MODE BYPASS ──────────────────────────────────────────────────────
   // Since Razorpay native module fails in Expo Go, we add a bypass for testing.
@@ -59,25 +92,7 @@ const PaymentReview = ({ eventData, onBack, onPay }) => {
         razorpay_payment_id: 'test_pay_' + Date.now(),
         razorpay_signature: 'test_sig_manual',
         isTest: true, // Tell backend this is a manual test bypass
-        eventData: {
-          name: eventData.eventName,
-          type: eventData.eventType,
-          location: eventData.location,
-          ...placeFields(eventData.place),
-          date: eventData.inDate,
-          inDate: eventData.inDate,
-          inTime: eventData.inTime,
-          outDate: eventData.outDate,
-          outTime: eventData.outTime,
-          suppliers: parseInt(eventData.suppliers) || 0,
-          dressCode: eventData.dressCode,
-          services: eventData.selectedSvcs || [],
-          costPerHead: parseFloat(eventData.costPerHead) || 0,
-          totalCost: (parseFloat(eventData.costPerHead) || 0) * (parseInt(eventData.suppliers) || 0),
-          advancePaid: paymentType === 'total' ?
-            (parseFloat(eventData.costPerHead) || 0) * (parseInt(eventData.suppliers) || 0) :
-            ((parseFloat(eventData.costPerHead) || 0) * (parseInt(eventData.suppliers) || 0) * 0.25)
-        }
+        eventData: buildEventPayload(currentPayAmount)
       };
 
       const verifyRes = await api.verifyPayment(mockPayload);
@@ -97,6 +112,7 @@ const PaymentReview = ({ eventData, onBack, onPay }) => {
   // ──────────────────────────────────────────────────────────────────────────
 
   const handlePay = async () => {
+    if (isPayLater) return handlePayLater();
     setIsSubmitting(true);
     try {
       // 1. Create Razorpay Order via Backend
@@ -134,23 +150,7 @@ const PaymentReview = ({ eventData, onBack, onPay }) => {
           razorpay_order_id: data.razorpay_order_id,
           razorpay_payment_id: data.razorpay_payment_id,
           razorpay_signature: data.razorpay_signature,
-          eventData: {
-            name: eventData.eventName,
-            type: eventData.eventType,
-            location: eventData.location,
-            ...placeFields(eventData.place),
-            date: eventData.inDate,
-            inDate: eventData.inDate,
-            inTime: eventData.inTime,
-            outDate: eventData.outDate,
-            outTime: eventData.outTime,
-            suppliers: suppliersCount,
-            dressCode: eventData.dressCode,
-            services: eventData.selectedSvcs || [],
-            costPerHead: costPerHead,
-            totalCost: totalAmount,
-            advancePaid: currentPayAmount
-          }
+          eventData: buildEventPayload(currentPayAmount)
         };
 
         const verifyRes = await api.verifyPayment(verificationPayload);
@@ -243,21 +243,34 @@ const PaymentReview = ({ eventData, onBack, onPay }) => {
             <Text style={styles.optionValue}>₹{advanceAmount.toLocaleString()}</Text>
           </TouchableOpacity>
 
+          <TouchableOpacity style={[styles.optionRow, isPayLater && styles.optionRowActive]} onPress={() => setPaymentType('later')}>
+            <View style={styles.radioGroup}>
+              <View style={[styles.radio, isPayLater && styles.radioActive]}>{isPayLater && <View style={styles.radioInner} />}</View>
+              <View><Text style={styles.optionLabel}>Pay Later</Text><Text style={styles.optionSub}>Create now, pay from Payments tab</Text></View>
+            </View>
+            <Text style={styles.optionValue}>₹0</Text>
+          </TouchableOpacity>
+
           <View style={styles.divider} />
           <View style={styles.totalRow}><Text style={styles.totalLabel}>Payable Now :</Text><Text style={styles.totalPrice}>₹{currentPayAmount.toLocaleString()}</Text></View>
+          {currentPayAmount < totalAmount && (
+            <Text style={styles.balanceNote}>Balance due later : ₹{(totalAmount - currentPayAmount).toLocaleString()}</Text>
+          )}
 
           <PrimaryButton style={[styles.payBtn, isSubmitting && { opacity: 0.7 }]} onPress={handlePay} disabled={isSubmitting}>
-            {isSubmitting ? <ActivityIndicator color={colors.white} /> : <Text style={styles.payBtnText}>Confirm and Pay ₹{currentPayAmount.toLocaleString()}</Text>}
+            {isSubmitting ? <ActivityIndicator color={colors.white} /> : <Text style={styles.payBtnText}>{isPayLater ? 'Create Event' : `Confirm and Pay ₹${currentPayAmount.toLocaleString()}`}</Text>}
           </PrimaryButton>
 
           {/* Test Mode Button - Only for Expo Go / Dev */}
-          <TouchableOpacity
-            style={[styles.testBtn, isSubmitting && { opacity: 0.5 }]}
-            onPress={handleSimulatedSuccess}
-            disabled={isSubmitting}
-          >
-            <Text style={styles.testBtnText}>[DEV] Simulate Success</Text>
-          </TouchableOpacity>
+          {!isPayLater && (
+            <TouchableOpacity
+              style={[styles.testBtn, isSubmitting && { opacity: 0.5 }]}
+              onPress={handleSimulatedSuccess}
+              disabled={isSubmitting}
+            >
+              <Text style={styles.testBtnText}>[DEV] Simulate Success</Text>
+            </TouchableOpacity>
+          )}
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -283,7 +296,7 @@ const styles = StyleSheet.create({
   icon: { marginLeft: 10 },
   backBtn: { position: 'absolute', top: 14, left: 14, width: 36, height: 36, borderRadius: 18, backgroundColor: alpha(COLORS.white, 0.14), justifyContent: 'center', alignItems: 'center' },
   scrollContent: { paddingBottom: 40 },
-  summaryCard: { backgroundColor: colors.surface, marginHorizontal: 20, borderRadius: radii.xl, padding: 20, borderWidth: 1, borderColor: colors.border, marginBottom: 16, ...shadows.card },
+  summaryCard: { backgroundColor: colors.surface, marginHorizontal: 20, borderRadius: radii.card, padding: 20, borderWidth: 1, borderColor: colors.border, marginBottom: 16, ...shadows.card },
   summaryHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15, borderBottomWidth: 1, borderBottomColor: colors.divider, paddingBottom: 12 },
   summaryTitle: { fontSize: 16, fontFamily: fonts.bold, color: colors.text },
   editBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, paddingHorizontal: 10, paddingVertical: 5, borderRadius: radii.sm },
@@ -292,7 +305,7 @@ const styles = StyleSheet.create({
   detailItem: { width: '50%', paddingHorizontal: 10, marginBottom: 15 },
   detailLabel: { fontSize: 12, fontFamily: fonts.regular, color: colors.textMuted, marginBottom: 2 },
   detailValue: { fontSize: 14, fontFamily: fonts.semibold, color: colors.text, textTransform: 'capitalize' },
-  paymentCard: { backgroundColor: colors.surface, marginHorizontal: 20, borderRadius: radii.xl, padding: 20, borderWidth: 1, borderColor: colors.border, ...shadows.card },
+  paymentCard: { backgroundColor: colors.surface, marginHorizontal: 20, borderRadius: radii.card, padding: 20, borderWidth: 1, borderColor: colors.border, ...shadows.card },
   costTitle: { fontSize: 17, fontFamily: fonts.bold, color: colors.text, marginBottom: 15 },
   costRowItem: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
   costDetail: { fontSize: 14, fontFamily: fonts.regular, color: colors.textSecondary },
@@ -310,6 +323,7 @@ const styles = StyleSheet.create({
   totalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 5, marginBottom: 18 },
   totalLabel: { fontSize: 15, fontFamily: fonts.semibold, color: colors.textHeading },
   totalPrice: { fontSize: 24, fontFamily: fonts.bold, color: colors.text },
+  balanceNote: { fontSize: 12, fontFamily: fonts.regular, color: colors.textSecondary, marginTop: -12, marginBottom: 18, textAlign: 'right' },
   payBtn: { ...buttons.primary },
   payBtnText: { ...buttons.primaryText },
   testBtn: {

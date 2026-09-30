@@ -137,7 +137,7 @@ const styles = StyleSheet.create({
     marginBottom: 40,
   },
   cardContainer: {
-    borderRadius: radii.xl,
+    borderRadius: radii.card,
     overflow: 'hidden',
     backgroundColor: alpha(COLORS.white, 0.7),
     borderWidth: 1,
